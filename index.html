@@ -826,7 +826,7 @@
                         setSupplementState(state.supplements || {});
                         setRecoveryScore(state.recoveryScore);
                         setRecoveryData(state.recoveryData || {});
-                        setWorkoutImage(state.workoutImage || null);
+                        // workoutImage not loaded from localStorage (too large)
                         setCustomWorkout(state.customWorkout || null);
                         setChallengeData(state.challengeData || {
                             pushupSets: [false, false, false, false, false],
@@ -854,12 +854,12 @@
                     supplements: supplementState,
                     recoveryScore,
                     recoveryData,
-                    workoutImage,
+                    // Don't save workoutImage - too large for localStorage
                     customWorkout,
                     challengeData
                 };
                 localStorage.setItem('fndtn-tracker-state', JSON.stringify(state));
-            }, [supplementState, recoveryScore, recoveryData, workoutImage, customWorkout, challengeData]);
+            }, [supplementState, recoveryScore, recoveryData, customWorkout, challengeData]);
 
             const calculateRecovery = () => {
                 const sleep = parseFloat(recoveryData.sleepPerformance);
@@ -883,21 +883,18 @@
             const handleImageUpload = (event) => {
                 const file = event.target.files[0];
                 if (file) {
-                    console.log('File selected:', file.name, file.type, file.size);
-                    setImageLoading(true);
+                    console.log('File selected:', file.name, file.size);
                     
                     const reader = new FileReader();
-                    reader.onloadend = () => {
-                        console.log('File read complete, data length:', reader.result?.length);
-                        setWorkoutImage(reader.result);
+                    reader.onload = (e) => {
+                        console.log('Setting image...');
+                        setWorkoutImage(e.target.result);
                         setCustomWorkout(null);
-                        setImageLoading(false);
-                        console.log('Image state set');
+                        console.log('Image set!');
                     };
                     reader.onerror = (error) => {
-                        console.error('FileReader error:', error);
-                        alert('Error reading file. Please try again.');
-                        setImageLoading(false);
+                        console.error('Error:', error);
+                        alert('Error loading image');
                     };
                     reader.readAsDataURL(file);
                 }
@@ -1243,13 +1240,7 @@
                         )}
 
                         {/* Image Upload Section */}
-                        {imageLoading ? (
-                            <div className="upload-button" style={{cursor: 'default'}}>
-                                <span className="upload-icon">⏳</span>
-                                <span style={{fontWeight: 600, color: '#FFFFFF'}}>Processing Image...</span>
-                                <span style={{fontSize: '12px'}}>Please wait</span>
-                            </div>
-                        ) : !workoutImage ? (
+                        {!workoutImage ? (
                             <div>
                                 <label className="upload-button">
                                     <span className="upload-icon">📸</span>
