@@ -1,0 +1,1478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="FNDTN">
+    <meta name="description" content="Complete performance tracking: recovery, supplements, workouts, and monthly challenges">
+    <meta name="theme-color" content="#2C5AA0">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <title>FNDTN Performance Tracker</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0A0A0A;
+            color: #FFFFFF;
+            overflow-x: hidden;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .app-container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding-bottom: 80px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2C5AA0 0%, #4A7C59 100%);
+            padding: 20px;
+            padding-top: calc(20px + env(safe-area-inset-top));
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .header .subtitle {
+            font-size: 12px;
+            opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .recovery-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 700;
+            margin-top: 8px;
+        }
+
+        .recovery-green { background: #4A7C59; color: white; }
+        .recovery-amber { background: #FF9500; color: white; }
+        .recovery-red { background: #FF3B30; color: white; }
+
+        .tab-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #1A1A1A;
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 0;
+            padding-bottom: calc(8px + env(safe-area-inset-bottom));
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.3);
+            z-index: 100;
+        }
+
+        .tab-button {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 8px;
+            background: none;
+            border: none;
+            color: #7D7D7D;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab-button.active {
+            color: #2C5AA0;
+        }
+
+        .tab-icon {
+            font-size: 24px;
+        }
+
+        .tab-label {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .content {
+            padding: 20px;
+        }
+
+        .card {
+            background: #1A1A1A;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #3A3A3A;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #3A3A3A;
+        }
+
+        .card-icon {
+            font-size: 24px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .card-subtitle {
+            font-size: 14px;
+            color: #7D7D7D;
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #7D7D7D;
+            margin-bottom: 8px;
+        }
+
+        .input-field {
+            width: 100%;
+            background: #2A2A2A;
+            border: 1px solid #3A3A3A;
+            border-radius: 8px;
+            padding: 12px;
+            color: white;
+            font-size: 16px;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #2C5AA0;
+        }
+
+        .button-primary {
+            width: 100%;
+            background: linear-gradient(135deg, #2C5AA0 0%, #4A7C59 100%);
+            border: none;
+            border-radius: 8px;
+            padding: 16px;
+            color: white;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .button-primary:active {
+            transform: scale(0.98);
+        }
+
+        .supplement-item {
+            background: #2A2A2A;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.3s;
+        }
+
+        .supplement-item.completed {
+            background: #1a3d2a;
+            border: 1px solid #4A7C59;
+        }
+
+        .supplement-info {
+            flex: 1;
+        }
+
+        .supplement-name {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .supplement-dose {
+            font-size: 13px;
+            color: #7D7D7D;
+        }
+
+        .check-button {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid #3A3A3A;
+            background: #1A1A1A;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .check-button.checked {
+            background: #4A7C59;
+            border-color: #4A7C59;
+        }
+
+        .check-icon {
+            color: white;
+            font-size: 20px;
+            display: none;
+        }
+
+        .check-button.checked .check-icon {
+            display: block;
+        }
+
+        .progress-ring {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .progress-value {
+            font-size: 48px;
+            font-weight: 700;
+            color: #2C5AA0;
+        }
+
+        .progress-label {
+            font-size: 14px;
+            color: #7D7D7D;
+            margin-top: 8px;
+        }
+
+        .time-badge {
+            display: inline-block;
+            background: #2C5AA0;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: auto;
+        }
+
+        .exercise-row {
+            background: #2A2A2A;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+        }
+
+        .exercise-name {
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .exercise-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .exercise-input {
+            background: #1A1A1A;
+            border: 1px solid #3A3A3A;
+            border-radius: 6px;
+            padding: 8px;
+            color: white;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .advisory-board {
+            display: grid;
+            gap: 16px;
+        }
+
+        .advisor-card {
+            background: #2A2A2A;
+            border-radius: 12px;
+            padding: 16px;
+            border-left: 4px solid #2C5AA0;
+        }
+
+        .advisor-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .advisor-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #2C5AA0 0%, #4A7C59 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .advisor-info h3 {
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .advisor-info p {
+            font-size: 12px;
+            color: #7D7D7D;
+        }
+
+        .advisor-advice {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #CCCCCC;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: #2A2A2A;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #2C5AA0;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #7D7D7D;
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .warning-banner {
+            background: #FF9500;
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .success-banner {
+            background: #4A7C59;
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .workout-image-container {
+            margin-bottom: 20px;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .workout-image {
+            width: 100%;
+            display: block;
+            border-radius: 12px;
+        }
+
+        .image-overlay {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .overlay-button {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            border: none;
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .overlay-button:active {
+            transform: scale(0.95);
+        }
+
+        .upload-button {
+            width: 100%;
+            background: #2A2A2A;
+            border: 2px dashed #3A3A3A;
+            border-radius: 8px;
+            padding: 24px;
+            color: #7D7D7D;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .upload-button:hover {
+            border-color: #2C5AA0;
+            color: #2C5AA0;
+        }
+
+        .upload-icon {
+            font-size: 32px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .challenge-section {
+            background: #2A2A2A;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .challenge-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #FFFFFF;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .challenge-subtitle {
+            font-size: 13px;
+            color: #7D7D7D;
+            margin-bottom: 16px;
+        }
+
+        .pushup-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .pushup-set {
+            aspect-ratio: 1;
+            background: #1A1A1A;
+            border: 2px solid #3A3A3A;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .pushup-set.completed {
+            background: #1a3d2a;
+            border-color: #4A7C59;
+        }
+
+        .pushup-set .set-number {
+            font-size: 11px;
+            color: #7D7D7D;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .pushup-set .set-count {
+            font-size: 16px;
+            font-weight: 700;
+            color: #FFFFFF;
+        }
+
+        .pushup-set.completed .set-count {
+            color: #4A7C59;
+        }
+
+        .pullup-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .pullup-set {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .pullup-label {
+            font-size: 11px;
+            color: #7D7D7D;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .pullup-input {
+            background: #1A1A1A;
+            border: 2px solid #3A3A3A;
+            border-radius: 8px;
+            padding: 12px;
+            color: white;
+            font-size: 18px;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .pullup-input:focus {
+            outline: none;
+            border-color: #2C5AA0;
+        }
+
+        .challenge-progress {
+            background: #1A1A1A;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+        }
+
+        .progress-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #3A3A3A;
+        }
+
+        .progress-row:last-child {
+            border-bottom: none;
+        }
+
+        .progress-label {
+            font-size: 13px;
+            color: #7D7D7D;
+        }
+
+        .progress-value {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .progress-value.complete {
+            color: #4A7C59;
+        }
+
+        .progress-value.incomplete {
+            color: #FF9500;
+        }
+
+        .month-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Supplement schedule data
+        const supplementSchedule = [
+            {
+                time: "5:30 AM",
+                title: "Morning Start",
+                icon: "🌅",
+                supplements: [
+                    { name: "AG1", dose: "1 scoop", reason: "B-vitamins, probiotics, greens" }
+                ]
+            },
+            {
+                time: "6:00 AM",
+                title: "Pre-Workout",
+                icon: "💪",
+                supplements: [
+                    { name: "L-Citrulline", dose: "6g" },
+                    { name: "Creatine", dose: "5g" },
+                    { name: "L-Theanine", dose: "100mg" }
+                ]
+            },
+            {
+                time: "7:00 AM",
+                title: "Post-Workout",
+                icon: "🏋️",
+                supplements: [
+                    { name: "Protein", dose: "25-30g" },
+                    { name: "Creatine", dose: "5g" },
+                    { name: "Vitamin C", dose: "500mg" }
+                ]
+            },
+            {
+                time: "10:00 AM",
+                title: "Breakfast",
+                icon: "🥣",
+                supplements: [
+                    { name: "Astaxanthin", dose: "8-12mg" },
+                    { name: "NAD+", dose: "250mg" },
+                    { name: "CoQ10", dose: "200mg" },
+                    { name: "Berberine", dose: "500mg" },
+                    { name: "Vitamin D3", dose: "4000 IU" },
+                    { name: "Vitamin K2", dose: "200mcg" },
+                    { name: "Omega-3", dose: "2-3g" },
+                    { name: "Ashwagandha", dose: "300mg" },
+                    { name: "B-Complex", dose: "1 cap" },
+                    { name: "Plant Sterols", dose: "2g" },
+                    { name: "Selenium", dose: "200mcg" }
+                ]
+            },
+            {
+                time: "1:00 PM",
+                title: "Lunch",
+                icon: "🥗",
+                supplements: [
+                    { name: "Berberine", dose: "500mg" },
+                    { name: "Vitamin C", dose: "500mg" }
+                ]
+            },
+            {
+                time: "6:00 PM",
+                title: "Dinner",
+                icon: "🍽️",
+                supplements: [
+                    { name: "Berberine", dose: "500mg" },
+                    { name: "Red Yeast Rice", dose: "1200mg" },
+                    { name: "Vitamin A", dose: "3000 IU" }
+                ]
+            },
+            {
+                time: "8:30 PM",
+                title: "Before Bed",
+                icon: "🌙",
+                supplements: [
+                    { name: "Ashwagandha", dose: "300mg" },
+                    { name: "L-Theanine", dose: "200mg" },
+                    { name: "Magnesium", dose: "400-600mg" }
+                ]
+            }
+        ];
+
+        // Weekly workout program
+        const workoutProgram = {
+            Monday: {
+                name: "PERFORM",
+                type: "Cardio",
+                exercises: [
+                    { name: "Rowing Intervals", target: "5x500m" },
+                    { name: "Bike Sprints", target: "8x30sec" },
+                    { name: "Battle Ropes", target: "4x45sec" }
+                ]
+            },
+            Tuesday: {
+                name: "BUILD - Lower",
+                type: "Strength",
+                exercises: [
+                    { name: "Squats", target: "4x8" },
+                    { name: "Romanian Deadlifts", target: "4x10" },
+                    { name: "Leg Press", target: "3x12" },
+                    { name: "Calf Raises", target: "3x15" }
+                ]
+            },
+            Wednesday: {
+                name: "ADAPT",
+                type: "Mobility",
+                exercises: [
+                    { name: "Yoga Flow", target: "45min" },
+                    { name: "Mobility Drills", target: "20min" }
+                ]
+            },
+            Thursday: {
+                name: "POWER",
+                type: "Power",
+                exercises: [
+                    { name: "Power Cleans", target: "5x3" },
+                    { name: "Box Jumps", target: "4x8" },
+                    { name: "Med Ball Slams", target: "4x10" }
+                ]
+            },
+            Friday: {
+                name: "BUILD - Upper",
+                type: "Strength",
+                exercises: [
+                    { name: "Bench Press", target: "4x8" },
+                    { name: "Pull-ups", target: "4x8" },
+                    { name: "Shoulder Press", target: "3x10" },
+                    { name: "Rows", target: "3x12" }
+                ]
+            },
+            Saturday: {
+                name: "Community",
+                type: "Group",
+                exercises: [
+                    { name: "Group Class", target: "60min" }
+                ]
+            },
+            Sunday: {
+                name: "Yoga",
+                type: "Recovery",
+                exercises: [
+                    { name: "Restorative Yoga", target: "60min" }
+                ]
+            }
+        };
+
+        function App() {
+            const [activeTab, setActiveTab] = useState('recovery');
+            const [recoveryData, setRecoveryData] = useState({
+                sleepPerformance: '',
+                hrv: '',
+                sleepDebt: '',
+                sleepDuration: ''
+            });
+            const [recoveryScore, setRecoveryScore] = useState(null);
+            const [supplementState, setSupplementState] = useState({});
+            const [workoutData, setWorkoutData] = useState({});
+            const [savedMessage, setSavedMessage] = useState('');
+            const [workoutImage, setWorkoutImage] = useState(null);
+            const [customWorkout, setCustomWorkout] = useState(null);
+            const [challengeData, setChallengeData] = useState({
+                pushupSets: [false, false, false, false, false],
+                pullupSets: ['', '', '', '']
+            });
+            const [challengeSaved, setChallengeSaved] = useState(false);
+
+            // Load state from localStorage
+            useEffect(() => {
+                const stored = localStorage.getItem('fndtn-tracker-state');
+                if (stored) {
+                    const state = JSON.parse(stored);
+                    const today = new Date().toDateString();
+                    if (state.date === today) {
+                        setSupplementState(state.supplements || {});
+                        setRecoveryScore(state.recoveryScore);
+                        setRecoveryData(state.recoveryData || {});
+                        setWorkoutImage(state.workoutImage || null);
+                        setCustomWorkout(state.customWorkout || null);
+                        setChallengeData(state.challengeData || {
+                            pushupSets: [false, false, false, false, false],
+                            pullupSets: ['', '', '', '']
+                        });
+                    }
+                }
+                
+                // Load monthly challenge history
+                const challenges = localStorage.getItem('fndtn-monthly-challenges');
+                if (challenges) {
+                    const history = JSON.parse(challenges);
+                    const today = new Date().toDateString();
+                    const todayChallenge = history.find(c => c.date === today);
+                    if (todayChallenge) {
+                        setChallengeSaved(true);
+                    }
+                }
+            }, []);
+
+            // Save state to localStorage
+            useEffect(() => {
+                const state = {
+                    date: new Date().toDateString(),
+                    supplements: supplementState,
+                    recoveryScore,
+                    recoveryData,
+                    workoutImage,
+                    customWorkout,
+                    challengeData
+                };
+                localStorage.setItem('fndtn-tracker-state', JSON.stringify(state));
+            }, [supplementState, recoveryScore, recoveryData, workoutImage, customWorkout, challengeData]);
+
+            const calculateRecovery = () => {
+                const sleep = parseFloat(recoveryData.sleepPerformance);
+                const hrv = parseFloat(recoveryData.hrv);
+                const debt = parseFloat(recoveryData.sleepDebt);
+                
+                if (!sleep || !hrv || debt === '') return null;
+
+                // Personal formula with 65% accuracy
+                let score = (sleep * 0.40) + ((hrv / 70) * 48) - (debt * 0.12);
+                
+                // Day of week adjustment
+                const day = new Date().getDay();
+                if (day === 0) score += 4; // Sunday
+                if (day === 6) score += 3; // Saturday
+                if (day >= 3 && day <= 5) score -= 2; // Wed-Fri
+
+                return Math.max(0, Math.min(100, Math.round(score)));
+            };
+
+            const handleImageUpload = (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        setWorkoutImage(reader.result);
+                        setCustomWorkout(null); // Clear custom workout when image uploaded
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+
+            const clearWorkoutImage = () => {
+                setWorkoutImage(null);
+                setCustomWorkout(null);
+            };
+
+            const togglePushupSet = (index) => {
+                const newSets = [...challengeData.pushupSets];
+                newSets[index] = !newSets[index];
+                setChallengeData({...challengeData, pushupSets: newSets});
+            };
+
+            const updatePullupSet = (index, value) => {
+                const newSets = [...challengeData.pullupSets];
+                newSets[index] = value;
+                setChallengeData({...challengeData, pullupSets: newSets});
+            };
+
+            const calculatePullupTotal = () => {
+                return challengeData.pullupSets.reduce((sum, val) => sum + (parseInt(val) || 0), 0);
+            };
+
+            const saveChallenge = () => {
+                const challenges = JSON.parse(localStorage.getItem('fndtn-monthly-challenges') || '[]');
+                const today = new Date().toDateString();
+                const monthYear = new Date().toLocaleDateString('en-AU', { month: 'long', year: 'numeric' });
+                
+                const pushupTotal = challengeData.pushupSets.filter(s => s).length * 20;
+                const pullupTotal = calculatePullupTotal();
+                
+                // Remove today's entry if exists (update scenario)
+                const filteredChallenges = challenges.filter(c => c.date !== today);
+                
+                filteredChallenges.push({
+                    date: today,
+                    monthYear,
+                    pushups: {
+                        sets: challengeData.pushupSets,
+                        total: pushupTotal
+                    },
+                    pullups: {
+                        sets: challengeData.pullupSets,
+                        total: pullupTotal
+                    }
+                });
+                
+                localStorage.setItem('fndtn-monthly-challenges', JSON.stringify(filteredChallenges));
+                setChallengeSaved(true);
+                setTimeout(() => setChallengeSaved(false), 3000);
+            };
+
+            const getChallengeStats = () => {
+                const challenges = JSON.parse(localStorage.getItem('fndtn-monthly-challenges') || '[]');
+                const currentMonth = new Date().toLocaleDateString('en-AU', { month: 'long', year: 'numeric' });
+                const monthChallenges = challenges.filter(c => c.monthYear === currentMonth);
+                
+                const totalPushups = monthChallenges.reduce((sum, c) => sum + c.pushups.total, 0);
+                const totalPullups = monthChallenges.reduce((sum, c) => sum + c.pullups.total, 0);
+                const daysCompleted = monthChallenges.filter(c => 
+                    c.pushups.total === 100 && c.pullups.total >= 26
+                ).length;
+                
+                return { totalPushups, totalPullups, daysCompleted, totalDays: monthChallenges.length };
+            };
+
+            const getRecoveryStatus = (score) => {
+                if (score >= 75) return { status: 'GREEN', color: 'recovery-green', text: '✓ FULL TRAINING CLEARED' };
+                if (score >= 60) return { status: 'AMBER', color: 'recovery-amber', text: '⚠️ MODIFIED TRAINING' };
+                return { status: 'RED', color: 'recovery-red', text: '🛑 REST REQUIRED' };
+            };
+
+            const getAdvisoryBoard = (score) => {
+                const advisors = [];
+                
+                if (score >= 75) {
+                    advisors.push({
+                        name: "Dr. Andy Galpin",
+                        title: "Exercise Physiologist",
+                        avatar: "🏋️",
+                        advice: "Excellent recovery state! Full intensity training approved. Your ACE GG variant gives you power advantages - exploit this with compound movements. Target RPE 8-9 today."
+                    });
+                    advisors.push({
+                        name: "Dr. Rhonda Patrick",
+                        title: "Nutrition Geneticist",
+                        avatar: "🧬",
+                        advice: "Your IL-6 GG variant means enhanced omega-3 response. Post-workout omega-3 timing is critical today. EVOO with breakfast optimizes fat-soluble vitamin absorption."
+                    });
+                } else if (score >= 60) {
+                    advisors.push({
+                        name: "Dr. Andy Galpin",
+                        title: "Exercise Physiologist",
+                        avatar: "🏋️",
+                        advice: "Moderate recovery. Reduce weights to 70-80% of max. Focus on technique and movement quality. Avoid CNS-intensive lifts. Keep RPE at 6-7 maximum."
+                    });
+                    advisors.push({
+                        name: "Dr. Leah Lagos",
+                        title: "HRV Specialist",
+                        avatar: "❤️",
+                        advice: "Your HRV indicates system stress. Add 10 minutes of 4-6 breathing today. Focus on parasympathetic activation pre and post-training."
+                    });
+                } else {
+                    advisors.push({
+                        name: "Dr. Matthew Walker",
+                        title: "Sleep Scientist",
+                        avatar: "😴",
+                        advice: "Critical sleep debt detected. Training will impair recovery further. Extend tonight's sleep opportunity by 60-90 minutes. Prioritize sleep quality over duration."
+                    });
+                    advisors.push({
+                        name: "Dr. Peter Attia",
+                        title: "Longevity Expert",
+                        avatar: "🔬",
+                        advice: "Your metabolic state doesn't support training stress. Light walking only. Consider postponing Thursday's 24-hour fast if recovery doesn't improve by Wednesday."
+                    });
+                }
+
+                advisors.push({
+                    name: "Dr. Leah Lagos",
+                    title: "HRV Specialist",
+                    avatar: "❤️",
+                    advice: `Current HRV ${recoveryData.hrv}ms. ${recoveryData.hrv < 40 ? 'Below critical threshold - complete rest mandatory.' : recoveryData.hrv > 55 ? 'Optimal - your autonomic system is balanced.' : 'Moderate - focus on stress management today.'}`
+                });
+
+                return advisors;
+            };
+
+            const toggleSupplement = (timeIndex, suppIndex) => {
+                const key = `${timeIndex}-${suppIndex}`;
+                setSupplementState(prev => ({
+                    ...prev,
+                    [key]: !prev[key]
+                }));
+            };
+
+            const calculateSupplementProgress = () => {
+                const total = supplementSchedule.reduce((sum, block) => sum + block.supplements.length, 0);
+                const completed = Object.values(supplementState).filter(v => v).length;
+                return Math.round((completed / total) * 100);
+            };
+
+            const saveWorkout = () => {
+                const workouts = JSON.parse(localStorage.getItem('fndtn-workouts') || '[]');
+                const today = new Date().toDateString();
+                const dayName = new Date().toLocaleDateString('en-AU', { weekday: 'long' });
+                
+                workouts.push({
+                    date: today,
+                    day: dayName,
+                    workout: customWorkout || workoutProgram[dayName],
+                    data: workoutData,
+                    recoveryScore,
+                    workoutImage
+                });
+                
+                localStorage.setItem('fndtn-workouts', JSON.stringify(workouts));
+                setSavedMessage('Workout saved!');
+                setTimeout(() => setSavedMessage(''), 3000);
+                setWorkoutData({});
+            };
+
+            const renderRecoveryTab = () => (
+                <div className="content">
+                    <div className="card">
+                        <div className="card-header">
+                            <span className="card-icon">📊</span>
+                            <div>
+                                <h2 className="card-title">Daily Biomarkers</h2>
+                                <p className="card-subtitle">Input today's Whoop metrics</p>
+                            </div>
+                        </div>
+
+                        <div className="input-group">
+                            <label className="input-label">Sleep Performance (%)</label>
+                            <input
+                                type="number"
+                                className="input-field"
+                                value={recoveryData.sleepPerformance}
+                                onChange={(e) => setRecoveryData({...recoveryData, sleepPerformance: e.target.value})}
+                                placeholder="e.g., 85"
+                            />
+                        </div>
+
+                        <div className="input-group">
+                            <label className="input-label">HRV (ms)</label>
+                            <input
+                                type="number"
+                                className="input-field"
+                                value={recoveryData.hrv}
+                                onChange={(e) => setRecoveryData({...recoveryData, hrv: e.target.value})}
+                                placeholder="e.g., 55"
+                            />
+                        </div>
+
+                        <div className="input-group">
+                            <label className="input-label">Sleep Debt (minutes)</label>
+                            <input
+                                type="number"
+                                className="input-field"
+                                value={recoveryData.sleepDebt}
+                                onChange={(e) => setRecoveryData({...recoveryData, sleepDebt: e.target.value})}
+                                placeholder="e.g., 30"
+                            />
+                        </div>
+
+                        <div className="input-group">
+                            <label className="input-label">Sleep Duration (hours)</label>
+                            <input
+                                type="number"
+                                step="0.5"
+                                className="input-field"
+                                value={recoveryData.sleepDuration}
+                                onChange={(e) => setRecoveryData({...recoveryData, sleepDuration: e.target.value})}
+                                placeholder="e.g., 7.5"
+                            />
+                        </div>
+
+                        <button 
+                            className="button-primary"
+                            onClick={() => setRecoveryScore(calculateRecovery())}
+                        >
+                            Calculate Recovery
+                        </button>
+                    </div>
+
+                    {recoveryScore !== null && (
+                        <>
+                            <div className="card">
+                                <div className="progress-ring">
+                                    <div className="progress-value">{recoveryScore}%</div>
+                                    <div className="progress-label">RECOVERY SCORE</div>
+                                </div>
+                                <div style={{textAlign: 'center', marginTop: '16px'}}>
+                                    <span className={`recovery-badge ${getRecoveryStatus(recoveryScore).color}`}>
+                                        {getRecoveryStatus(recoveryScore).text}
+                                    </span>
+                                </div>
+
+                                <div className="stat-grid">
+                                    <div className="stat-card">
+                                        <div className="stat-value">{recoveryData.sleepPerformance}%</div>
+                                        <div className="stat-label">Sleep</div>
+                                    </div>
+                                    <div className="stat-card">
+                                        <div className="stat-value">{recoveryData.hrv}</div>
+                                        <div className="stat-label">HRV (ms)</div>
+                                    </div>
+                                    <div className="stat-card">
+                                        <div className="stat-value">{recoveryData.sleepDebt}</div>
+                                        <div className="stat-label">Debt (min)</div>
+                                    </div>
+                                    <div className="stat-card">
+                                        <div className="stat-value">{recoveryData.sleepDuration}</div>
+                                        <div className="stat-label">Duration (hrs)</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="card">
+                                <div className="card-header">
+                                    <span className="card-icon">🎯</span>
+                                    <div>
+                                        <h2 className="card-title">Virtual Advisory Board</h2>
+                                        <p className="card-subtitle">Expert recommendations</p>
+                                    </div>
+                                </div>
+                                <div className="advisory-board">
+                                    {getAdvisoryBoard(recoveryScore).map((advisor, idx) => (
+                                        <div key={idx} className="advisor-card">
+                                            <div className="advisor-header">
+                                                <div className="advisor-avatar">{advisor.avatar}</div>
+                                                <div className="advisor-info">
+                                                    <h3>{advisor.name}</h3>
+                                                    <p>{advisor.title}</p>
+                                                </div>
+                                            </div>
+                                            <div className="advisor-advice">{advisor.advice}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+            );
+
+            const renderSupplementsTab = () => (
+                <div className="content">
+                    <div className="progress-ring">
+                        <div className="progress-value">{calculateSupplementProgress()}%</div>
+                        <div className="progress-label">DAILY PROGRESS</div>
+                    </div>
+
+                    {supplementSchedule.map((block, timeIndex) => (
+                        <div key={timeIndex} className="card">
+                            <div className="card-header">
+                                <span className="card-icon">{block.icon}</span>
+                                <div style={{flex: 1}}>
+                                    <h3 className="card-title">{block.title}</h3>
+                                    <p className="card-subtitle">{block.time}</p>
+                                </div>
+                                <span className="time-badge">{block.time}</span>
+                            </div>
+                            {block.supplements.map((supp, suppIndex) => {
+                                const key = `${timeIndex}-${suppIndex}`;
+                                const completed = supplementState[key];
+                                return (
+                                    <div
+                                        key={suppIndex}
+                                        className={`supplement-item ${completed ? 'completed' : ''}`}
+                                        onClick={() => toggleSupplement(timeIndex, suppIndex)}
+                                    >
+                                        <div className="supplement-info">
+                                            <div className="supplement-name">{supp.name}</div>
+                                            <div className="supplement-dose">{supp.dose}</div>
+                                        </div>
+                                        <button className={`check-button ${completed ? 'checked' : ''}`}>
+                                            <span className="check-icon">✓</span>
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ))}
+                </div>
+            );
+
+            const renderWorkoutTab = () => {
+                const dayName = new Date().toLocaleDateString('en-AU', { weekday: 'long' });
+                const todayWorkout = customWorkout || workoutProgram[dayName];
+
+                return (
+                    <div className="content">
+                        {recoveryScore !== null && recoveryScore < 75 && (
+                            <div className={recoveryScore < 60 ? 'warning-banner' : 'success-banner'}>
+                                {recoveryScore < 60 
+                                    ? `⚠️ Recovery at ${recoveryScore}% - Reduce intensity to 50-60% or rest`
+                                    : `⚠️ Recovery at ${recoveryScore}% - Reduce weights to 70-80% capacity`
+                                }
+                            </div>
+                        )}
+
+                        {/* Image Upload Section */}
+                        {!workoutImage ? (
+                            <label className="upload-button">
+                                <span className="upload-icon">📸</span>
+                                <span style={{fontWeight: 600, color: '#FFFFFF'}}>Upload Today's Workout</span>
+                                <span style={{fontSize: '12px'}}>Tap to take photo or select from library</span>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    capture="environment"
+                                    className="file-input"
+                                    onChange={handleImageUpload}
+                                />
+                            </label>
+                        ) : (
+                            <div className="workout-image-container">
+                                <img src={workoutImage} alt="Today's Workout" className="workout-image" />
+                                <div className="image-overlay">
+                                    <button className="overlay-button" onClick={clearWorkoutImage}>
+                                        🗑️ Remove
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="card">
+                            <div className="card-header">
+                                <span className="card-icon">💪</span>
+                                <div>
+                                    <h2 className="card-title">{todayWorkout.name}</h2>
+                                    <p className="card-subtitle">{dayName} • {todayWorkout.type}</p>
+                                </div>
+                            </div>
+
+                            {todayWorkout.exercises.map((exercise, idx) => (
+                                <div key={idx} className="exercise-row">
+                                    <div className="exercise-name">
+                                        {exercise.name} - {exercise.target}
+                                    </div>
+                                    <div className="exercise-inputs">
+                                        <input
+                                            type="number"
+                                            className="exercise-input"
+                                            placeholder="Reps"
+                                            value={workoutData[`${idx}-reps`] || ''}
+                                            onChange={(e) => setWorkoutData({
+                                                ...workoutData,
+                                                [`${idx}-reps`]: e.target.value
+                                            })}
+                                        />
+                                        <input
+                                            type="number"
+                                            className="exercise-input"
+                                            placeholder="Weight (kg)"
+                                            value={workoutData[`${idx}-weight`] || ''}
+                                            onChange={(e) => setWorkoutData({
+                                                ...workoutData,
+                                                [`${idx}-weight`]: e.target.value
+                                            })}
+                                        />
+                                    </div>
+                                </div>
+                            ))}
+
+                            <div className="input-group" style={{marginTop: '16px'}}>
+                                <label className="input-label">Training Notes</label>
+                                <input
+                                    type="text"
+                                    className="input-field"
+                                    placeholder="RPE, energy levels, observations..."
+                                    value={workoutData['notes'] || ''}
+                                    onChange={(e) => setWorkoutData({
+                                        ...workoutData,
+                                        notes: e.target.value
+                                    })}
+                                />
+                            </div>
+
+                            <button className="button-primary" onClick={saveWorkout}>
+                                Save Workout
+                            </button>
+
+                            {savedMessage && (
+                                <div className="success-banner" style={{marginTop: '16px'}}>
+                                    {savedMessage}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            };
+
+            const renderChallengeTab = () => {
+                const pushupTotal = challengeData.pushupSets.filter(s => s).length * 20;
+                const pullupTotal = calculatePullupTotal();
+                const stats = getChallengeStats();
+                const currentMonth = new Date().toLocaleDateString('en-AU', { month: 'long' });
+
+                return (
+                    <div className="content">
+                        <div className="card">
+                            <div className="card-header">
+                                <span className="card-icon">🎯</span>
+                                <div>
+                                    <h2 className="card-title">{currentMonth} Challenge</h2>
+                                    <p className="card-subtitle">Daily targets: 100 pushups + 26 pullups</p>
+                                </div>
+                            </div>
+
+                            {/* Today's Progress */}
+                            <div className="challenge-progress">
+                                <div className="progress-row">
+                                    <span className="progress-label">Pushups</span>
+                                    <span className={`progress-value ${pushupTotal >= 100 ? 'complete' : 'incomplete'}`}>
+                                        {pushupTotal} / 100
+                                    </span>
+                                </div>
+                                <div className="progress-row">
+                                    <span className="progress-label">Pullups</span>
+                                    <span className={`progress-value ${pullupTotal >= 26 ? 'complete' : 'incomplete'}`}>
+                                        {pullupTotal} / 26
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Pushup Sets */}
+                            <div className="challenge-section">
+                                <div className="challenge-title">
+                                    💪 Pushups
+                                </div>
+                                <div className="challenge-subtitle">
+                                    Tap each set when complete (20 reps per set)
+                                </div>
+                                <div className="pushup-grid">
+                                    {challengeData.pushupSets.map((completed, idx) => (
+                                        <div
+                                            key={idx}
+                                            className={`pushup-set ${completed ? 'completed' : ''}`}
+                                            onClick={() => togglePushupSet(idx)}
+                                        >
+                                            <div className="set-number">Set {idx + 1}</div>
+                                            <div className="set-count">
+                                                {completed ? '✓' : '20'}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Pullup Sets */}
+                            <div className="challenge-section">
+                                <div className="challenge-title">
+                                    🏋️ Pullups
+                                </div>
+                                <div className="challenge-subtitle">
+                                    Enter reps completed (up to 4 sets, total 26+)
+                                </div>
+                                <div className="pullup-grid">
+                                    {challengeData.pullupSets.map((count, idx) => (
+                                        <div key={idx} className="pullup-set">
+                                            <div className="pullup-label">Set {idx + 1}</div>
+                                            <input
+                                                type="number"
+                                                className="pullup-input"
+                                                value={count}
+                                                onChange={(e) => updatePullupSet(idx, e.target.value)}
+                                                placeholder="0"
+                                                min="0"
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <button className="button-primary" onClick={saveChallenge}>
+                                Save Challenge
+                            </button>
+
+                            {challengeSaved && (
+                                <div className="success-banner" style={{marginTop: '16px'}}>
+                                    ✓ Challenge saved!
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Monthly Stats */}
+                        <div className="card">
+                            <div className="card-header">
+                                <span className="card-icon">📈</span>
+                                <div>
+                                    <h2 className="card-title">{currentMonth} Stats</h2>
+                                    <p className="card-subtitle">Month-to-date progress</p>
+                                </div>
+                            </div>
+
+                            <div className="month-stats-grid">
+                                <div className="stat-card">
+                                    <div className="stat-value">{stats.daysCompleted}</div>
+                                    <div className="stat-label">Perfect Days</div>
+                                </div>
+                                <div className="stat-card">
+                                    <div className="stat-value">{stats.totalDays}</div>
+                                    <div className="stat-label">Total Days</div>
+                                </div>
+                                <div className="stat-card">
+                                    <div className="stat-value">{stats.totalPushups}</div>
+                                    <div className="stat-label">Total Pushups</div>
+                                </div>
+                                <div className="stat-card">
+                                    <div className="stat-value">{stats.totalPullups}</div>
+                                    <div className="stat-label">Total Pullups</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            return (
+                <div className="app-container">
+                    <div className="header">
+                        <h1>FNDTN PERFORMANCE</h1>
+                        <div className="subtitle">Push Past Possible</div>
+                        {recoveryScore !== null && (
+                            <span className={`recovery-badge ${getRecoveryStatus(recoveryScore).color}`}>
+                                {recoveryScore}% {getRecoveryStatus(recoveryScore).status}
+                            </span>
+                        )}
+                    </div>
+
+                    {activeTab === 'recovery' && renderRecoveryTab()}
+                    {activeTab === 'supplements' && renderSupplementsTab()}
+                    {activeTab === 'workout' && renderWorkoutTab()}
+                    {activeTab === 'challenge' && renderChallengeTab()}
+
+                    <div className="tab-bar">
+                        <button 
+                            className={`tab-button ${activeTab === 'recovery' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('recovery')}
+                        >
+                            <span className="tab-icon">📊</span>
+                            <span className="tab-label">Recovery</span>
+                        </button>
+                        <button 
+                            className={`tab-button ${activeTab === 'supplements' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('supplements')}
+                        >
+                            <span className="tab-icon">💊</span>
+                            <span className="tab-label">Supplements</span>
+                        </button>
+                        <button 
+                            className={`tab-button ${activeTab === 'workout' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('workout')}
+                        >
+                            <span className="tab-icon">💪</span>
+                            <span className="tab-label">Workout</span>
+                        </button>
+                        <button 
+                            className={`tab-button ${activeTab === 'challenge' ? 'active' : ''}`}
+                            onClick={() => setActiveTab('challenge')}
+                        >
+                            <span className="tab-icon">🎯</span>
+                            <span className="tab-label">Challenge</span>
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
