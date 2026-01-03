@@ -425,12 +425,17 @@
             border-radius: 12px;
             overflow: hidden;
             position: relative;
+            max-height: 80vh;
         }
 
         .workout-image {
             width: 100%;
+            height: auto;
+            max-height: 80vh;
+            object-fit: contain;
             display: block;
             border-radius: 12px;
+            background: #1A1A1A;
         }
 
         .image-overlay {
@@ -810,6 +815,7 @@
                 pullupSets: ['', '', '', '']
             });
             const [challengeSaved, setChallengeSaved] = useState(false);
+            const [imageLoading, setImageLoading] = useState(false);
 
             // Load state from localStorage
             useEffect(() => {
@@ -878,10 +884,21 @@
             const handleImageUpload = (event) => {
                 const file = event.target.files[0];
                 if (file) {
+                    console.log('File selected:', file.name, file.type, file.size);
+                    setImageLoading(true);
+                    
                     const reader = new FileReader();
                     reader.onloadend = () => {
+                        console.log('File read complete, data length:', reader.result?.length);
                         setWorkoutImage(reader.result);
-                        setCustomWorkout(null); // Clear custom workout when image uploaded
+                        setCustomWorkout(null);
+                        setImageLoading(false);
+                        console.log('Image state set');
+                    };
+                    reader.onerror = (error) => {
+                        console.error('FileReader error:', error);
+                        alert('Error reading file. Please try again.');
+                        setImageLoading(false);
                     };
                     reader.readAsDataURL(file);
                 }
@@ -1227,21 +1244,46 @@
                         )}
 
                         {/* Image Upload Section */}
-                        {!workoutImage ? (
-                            <label className="upload-button">
-                                <span className="upload-icon">📸</span>
-                                <span style={{fontWeight: 600, color: '#FFFFFF'}}>Upload Today's Workout</span>
-                                <span style={{fontSize: '12px'}}>Tap to take photo or select from library</span>
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="file-input"
-                                    onChange={handleImageUpload}
-                                />
-                            </label>
+                        {imageLoading ? (
+                            <div className="upload-button" style={{cursor: 'default'}}>
+                                <span className="upload-icon">⏳</span>
+                                <span style={{fontWeight: 600, color: '#FFFFFF'}}>Processing Image...</span>
+                                <span style={{fontSize: '12px'}}>Please wait</span>
+                            </div>
+                        ) : !workoutImage ? (
+                            <div>
+                                <label className="upload-button">
+                                    <span className="upload-icon">📸</span>
+                                    <span style={{fontWeight: 600, color: '#FFFFFF'}}>Upload Today's Workout</span>
+                                    <span style={{fontSize: '12px'}}>Tap to take photo or select from library</span>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="file-input"
+                                        onChange={handleImageUpload}
+                                    />
+                                </label>
+                                <div style={{fontSize: '12px', color: '#7D7D7D', textAlign: 'center', marginTop: '-8px', marginBottom: '16px'}}>
+                                    Look for Camera or Photos tabs at bottom of screen
+                                </div>
+                            </div>
                         ) : (
                             <div className="workout-image-container">
-                                <img src={workoutImage} alt="Today's Workout" className="workout-image" />
+                                {workoutImage && (
+                                    <div style={{fontSize: '10px', color: '#4A7C59', padding: '8px', textAlign: 'center'}}>
+                                        Image loaded ({workoutImage.substring(0, 30)}...)
+                                    </div>
+                                )}
+                                <img 
+                                    src={workoutImage} 
+                                    alt="Today's Workout" 
+                                    className="workout-image"
+                                    onLoad={() => console.log('Image rendered successfully')}
+                                    onError={(e) => {
+                                        console.error('Image render error:', e);
+                                        alert('Error displaying image');
+                                    }}
+                                />
                                 <div className="image-overlay">
                                     <button className="overlay-button" onClick={clearWorkoutImage}>
                                         🗑️ Remove
