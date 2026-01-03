@@ -1336,6 +1336,65 @@
                         {/* Image Upload Section */}
                         {!workoutImage ? (
                             <div>
+                                {/* API Key Management */}
+                                <div style={{background: apiKey ? '#2A2A2A' : '#FF9500', padding: '16px', borderRadius: '12px', marginBottom: '20px'}}>
+                                    <p style={{fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: apiKey ? '#FFFFFF' : '#000'}}>
+                                        🔑 {apiKey ? 'API Key Configured' : 'Setup Required'}
+                                    </p>
+                                    {!apiKey && (
+                                        <p style={{fontSize: '12px', marginBottom: '12px', color: '#000'}}>
+                                            Enter your Google Cloud Vision API key for automatic OCR
+                                        </p>
+                                    )}
+                                    <input
+                                        type="text"
+                                        placeholder="Paste API key here"
+                                        defaultValue={apiKey}
+                                        style={{
+                                            width: '100%',
+                                            padding: '10px',
+                                            borderRadius: '6px',
+                                            border: 'none',
+                                            fontSize: '14px',
+                                            marginBottom: '8px',
+                                            boxSizing: 'border-box',
+                                            background: '#FFFFFF',
+                                            color: '#000000'
+                                        }}
+                                        onBlur={(e) => {
+                                            if (e.target.value) {
+                                                saveApiKey(e.target.value);
+                                            }
+                                        }}
+                                    />
+                                    {apiKey && (
+                                        <button
+                                            onClick={() => {
+                                                if (confirm('Clear API key? You\'ll need to enter it again.')) {
+                                                    localStorage.removeItem('google-vision-api-key');
+                                                    setApiKey('');
+                                                }
+                                            }}
+                                            style={{
+                                                background: '#FF3B30',
+                                                border: 'none',
+                                                borderRadius: '6px',
+                                                padding: '8px 12px',
+                                                color: 'white',
+                                                fontSize: '12px',
+                                                fontWeight: 600,
+                                                cursor: 'pointer',
+                                                marginTop: '8px'
+                                            }}
+                                        >
+                                            Clear API Key
+                                        </button>
+                                    )}
+                                    <p style={{fontSize: '11px', color: apiKey ? '#7D7D7D' : '#000', opacity: apiKey ? 1 : 0.8, marginTop: '8px'}}>
+                                        {apiKey ? 'Key saved. Edit above to change it.' : 'Your key is saved locally and never sent anywhere except Google\'s API'}
+                                    </p>
+                                </div>
+
                                 <label className="upload-button">
                                     <span className="upload-icon">📸</span>
                                     <span style={{fontWeight: 600, color: '#FFFFFF'}}>Upload Today's Workout</span>
