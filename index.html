@@ -912,15 +912,71 @@
             const parseWorkoutText = (text) => {
                 // Split by lines and filter out empty lines
                 const lines = text.split('\n').filter(line => line.trim());
-                const exercises = lines.map(line => {
-                    // Try to extract exercise name and target (e.g. "Squats 4x8" or "Squats - 4x8")
+                
+                // Group exercises by blocks (look for EMOM time indicators)
+                let currentBlockTime = null;
+                let currentBlockExercises = [];
+                const blocks = [];
+                
+                lines.forEach(line => {
+                    // Check if line contains EMOM time info
+                    const emomMatch = line.match(/(\d+)-(\d+)\s*MIN\s*EMOM/i) || line.match(/(\d+)\s*MIN\s*EMOM/i);
+                    
+                    if (emomMatch) {
+                        // Save previous block if exists
+                        if (currentBlockExercises.length > 0) {
+                            blocks.push({
+                                time: currentBlockTime,
+                                exercises: currentBlockExercises
+                            });
+                        }
+                        // Start new block - use maximum time
+                        currentBlockTime = emomMatch[2] ? parseInt(emomMatch[2]) : parseInt(emomMatch[1]);
+                        currentBlockExercises = [];
+                    } else if (line.includes('-') && !line.match(/BLOCK|MIN/i)) {
+                        // This looks like an exercise line
+                        const parts = line.split(/[-–]/);
+                        currentBlockExercises.push({
+                            name: parts[0].trim(),
+                            target: parts[1]?.trim() || '',
+                            blockTime: currentBlockTime
+                        });
+                    }
+                });
+                
+                // Add last block
+                if (currentBlockExercises.length > 0) {
+                    blocks.push({
+                        time: currentBlockTime,
+                        exercises: currentBlockExercises
+                    });
+                }
+                
+                // Flatten blocks and calculate rounds per exercise
+                const allExercises = [];
+                blocks.forEach(block => {
+                    block.exercises.forEach(ex => {
+                        if (block.time && block.exercises.length > 0) {
+                            // EMOM: rounds = time ÷ exercises in block
+                            const rounds = Math.floor(block.time / block.exercises.length);
+                            allExercises.push({
+                                ...ex,
+                                target: `${rounds}x${ex.target}`,
+                                rounds: rounds
+                            });
+                        } else {
+                            allExercises.push(ex);
+                        }
+                    });
+                });
+                
+                return allExercises.length > 0 ? allExercises : lines.map(line => {
                     const parts = line.split(/[-–]/);
                     return {
                         name: parts[0].trim(),
                         target: parts[1]?.trim() || ''
                     };
                 });
-                return exercises;
             };
 
             const handleWorkoutTextChange = (text) => {
@@ -974,21 +1030,31 @@
                         max_tokens: 1024,
                         messages: [{
                             role: 'user',
-                            content: `You are parsing a workout board image text. Extract ONLY the exercises with their sets and reps.
+                            content: `You are parsing a workout board image text. Extract exercises grouped by their blocks with EMOM timing preserved.
 
 Rules:
-1. Format each exercise as "Exercise Name - Sets x Reps"
-2. If text shows "BLOCK 1 - 3 ROUNDS" or "3 RIR" or similar, that means 3 sets
-3. Ignore rest periods, instructions like "Continuous", "EMOM", block headers
-4. For exercises with rep ranges like "10-12", use "10-12" as the reps
-5. For "e/s" (each side), include it: "10 e/s"
-6. Return ONLY the exercise list, nothing else
+1. Preserve block structure - keep exercises grouped with their EMOM time
+2. Format blocks as: "BLOCK X - [TIME]MIN EMOM" on its own line, then list exercises
+3. Format exercises as "Exercise Name - Reps" (just the reps, not sets - we'll calculate sets from EMOM time)
+4. Ignore "RIR", "Continuous", and rest instructions
+5. For rep ranges like "10-12", keep as "10-12"
+6. For "e/s" (each side), include it: "10-12 e/s"
 
 Example:
-Input: "BLOCK 1 - 3 ROUNDS\nA. Squats x 10-12\n1-3 RIR\nB. Push-ups x 15\nC. Rest 60 seconds"
+
+Input: 
+"BLOCK 1 - 9-12MIN EMOM
+A. Trap Bar Deadlift x 10-12
+1-3 RIR // Continuous
+B. DB Bulg. Split Squat x 5-8 e/s
+C. Rest x 60 SECONDS"
+
 Output:
-Squats - 3x10-12
-Push-ups - 3x15
+BLOCK 1 - 12MIN EMOM
+Trap Bar Deadlift - x10-12
+DB Bulgarian Split Squat - x5-8 e/s
+
+Important: Use the MAXIMUM time from ranges (12 from "9-12"), and group exercises by their blocks.
 
 Now parse this workout:
 ${ocrText}`
@@ -1764,8 +1830,24 @@ ${ocrText}`
 
                             {todayWorkout.exercises.map((exercise, idx) => {
                                 // Extract number of sets/rounds from target
-                                const setsMatch = exercise.target.match(/(\d+)x/);
-                                const numSets = setsMatch ? parseInt(setsMatch[1]) : 1;
+                                // Check for time-based formats like "9-12MIN EMOM" or "12MIN EMOM"
+                                let numSets = 1;
+                                
+                                // Try to find time range first (e.g., "9-12MIN" -> use 12)
+                                const timeRangeMatch = exercise.target.match(/(\d+)-(\d+)\s*MIN/i);
+                                if (timeRangeMatch) {
+                                    numSets = parseInt(timeRangeMatch[2]); // Use the larger number
+                                } else {
+                                    // Try single time value (e.g., "12MIN")
+                                    const singleTimeMatch = exercise.target.match(/(\d+)\s*MIN/i);
+                                    if (singleTimeMatch) {
+                                        numSets = parseInt(singleTimeMatch[1]);
+                                    } else {
+                                        // Fall back to traditional sets format (e.g., "3x10")
+                                        const setsMatch = exercise.target.match(/(\d+)x/);
+                                        numSets = setsMatch ? parseInt(setsMatch[1]) : 1;
+                                    }
+                                }
                                 
                                 return (
                                     <div key={idx} className="exercise-row">
