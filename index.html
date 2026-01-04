@@ -821,14 +821,11 @@
             const [advisors, setAdvisors] = useState([]);
             const [loadingAdvisors, setLoadingAdvisors] = useState(false);
             const [mealPhoto, setMealPhoto] = useState(null);
-            const [mealAnalyzing, setMealAnalyzing] = useState(false);
+            const [mealAnalysing, setMealAnalysing] = useState(false);
             const [currentMeal, setCurrentMeal] = useState(null);
             const [menuPhoto, setMenuPhoto] = useState(null);
-            const [mealAnalysing, setMealAnalysing] = useState(false);
+            const [menuRecommendation, setMenuRecommendation] = useState(null);
             const [menuAnalysing, setMenuAnalysing] = useState(false);
-            const [menuRecommendation, setMenuRecommendation] = useState(null);
-            const [menuRecommendation, setMenuRecommendation] = useState(null);
-            const [menuAnalyzing, setMenuAnalyzing] = useState(false);
             const [imageLoading, setImageLoading] = useState(false);
 
             // Load state from localStorage
@@ -1281,6 +1278,19 @@ ${ocrText}`
             };
 
             const getChallengeStats = () => {
+                const challenges = JSON.parse(localStorage.getItem('fndtn-monthly-challenges') || '[]');
+                const currentMonth = new Date().toLocaleDateString('en-AU', { month: 'long', year: 'numeric' });
+                const monthChallenges = challenges.filter(c => c.monthYear === currentMonth);
+                
+                const totalPushups = monthChallenges.reduce((sum, c) => sum + c.pushups.total, 0);
+                const totalPullups = monthChallenges.reduce((sum, c) => sum + c.pullups.total, 0);
+                const daysCompleted = monthChallenges.filter(c => 
+                    c.pushups.total === 100 && c.pullups.total >= 26
+                ).length;
+                
+                return { totalPushups, totalPullups, daysCompleted, totalDays: monthChallenges.length };
+            };
+
             const analyseMeal = async (imageData) => {
                 if (!apiKey || !claudeApiKey) {
                     alert('Both Google Vision and Claude API keys required for meal analysis');
@@ -1290,7 +1300,7 @@ ${ocrText}`
                 setMealAnalysing(true);
 
                 try {
-                    // Step 1: Extract text from meal photo using Google Vision OCR
+                    // Step 1: OCR the meal photo
                     const base64Image = imageData.split(',')[1];
                     const ocrResponse = await fetch(
                         `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
@@ -1312,9 +1322,7 @@ ${ocrText}`
                         detectedText = ocrData.responses[0].textAnnotations[0].description;
                     }
 
-                    console.log('OCR detected text:', detectedText);
-
-                    // Step 2: Analyse the OCR text with Claude
+                    // Step 2: Analyse with Claude
                     const claudeResponse = await fetch('https://anthropic-proxy.peter-5aa.workers.dev/', {
                         method: 'POST',
                         headers: {
@@ -1326,62 +1334,38 @@ ${ocrText}`
                             max_tokens: 1500,
                             messages: [{
                                 role: 'user',
-                                content: `You are analysing a meal based on text extracted from a food photo via OCR (nutrition labels, packaging, menu text).
+                                content: `Analyse this meal photo for nutritional tracking.
 
-**Text extracted from image:**
-${detectedText || '[No readable text detected in image]'}
+Detected text: ${detectedText || 'No text detected'}
 
-**Task:**
-Based on the extracted text, estimate the meal's nutritional content for Peter's tracking.
-
-**Peter's Genetic Requirements:**
-- IL-6 GG: Elevated inflammation risk (prioritise anti-inflammatory foods)
-- LDL-R CT: Saturated fat sensitivity (<7% of calories)
-- Diabetes variants: Low glycemic index, controlled carbs
-- Fat-sensitive variants: Total fat 25-30%, quality emphasis
-- Minimum per meal: 30g protein, 10g fibre
-
-**Current Recovery State:** ${recoveryScore ? recoveryScore + '%' : 'Not calculated'}
-
-**Instructions:**
-- If sufficient text was detected, analyse and estimate macros
-- If no meaningful text, indicate unable to analyse
-- Return ONLY valid JSON in code fences
-- No explanatory text before or after JSON
+Provide JSON response:
 
 \`\`\`json
 {
-  "mealName": "Brief description from detected text",
+  "mealName": "Brief description",
   "estimatedMacros": {
     "protein": "30-35g",
     "carbs": "40-50g",
     "fat": "15-20g"
   },
-  "geneticAlignment": "How this meal aligns with IL-6, LDL-R, diabetes requirements",
-  "recoveryOptimisation": "Relevance to current recovery state",
-  "improvements": "Suggestions if applicable"
+  "keyIngredients": ["ingredient1", "ingredient2"],
+  "geneticAlignment": "How this fits IL-6 GG inflammation, LDL-R CT saturated fat sensitivity, diabetes variants",
+  "recoveryOptimisation": "How this supports ${recoveryScore}% recovery state",
+  "improvements": "Optional suggestions"
 }
-\`\`\``
+\`\`\`
+
+Be concise.`
                             }]
                         })
                     });
 
                     const claudeData = await claudeResponse.json();
-                    console.log('Claude response:', claudeData);
-                    
                     if (claudeData.content?.[0]?.text) {
-                        const responseText = claudeData.content[0].text;
-                        console.log('Response text:', responseText);
-                        
-                        // Extract JSON from response
-                        const jsonMatch = responseText.match(/```json\n?([\s\S]*?)\n?```/) || 
-                                        responseText.match(/\{[\s\S]*\}/);
-                        
+                        const jsonMatch = claudeData.content[0].text.match(/```json\n?([\s\S]*?)\n?```/) || 
+                                        claudeData.content[0].text.match(/\{[\s\S]*\}/);
                         if (jsonMatch) {
-                            const jsonText = jsonMatch[1] || jsonMatch[0];
-                            const mealData = JSON.parse(jsonText);
-                            
-                            console.log('✓ Meal data parsed:', mealData);
+                            const mealData = JSON.parse(jsonMatch[1] || jsonMatch[0]);
                             setCurrentMeal(mealData);
                             
                             // Save to history
@@ -1392,14 +1376,11 @@ Based on the extracted text, estimate the meal's nutritional content for Peter's
                                 recoveryScore
                             });
                             localStorage.setItem('fndtn-meals', JSON.stringify(meals));
-                        } else {
-                            console.error('No JSON in response');
-                            alert('Could not parse meal analysis. Check console.');
                         }
                     }
                 } catch (error) {
                     console.error('Meal analysis error:', error);
-                    alert('Error: ' + error.message);
+                    alert('Error analysing meal: ' + error.message);
                 } finally {
                     setMealAnalysing(false);
                 }
@@ -1414,7 +1395,7 @@ Based on the extracted text, estimate the meal's nutritional content for Peter's
                 setMenuAnalysing(true);
 
                 try {
-                    // Step 1: Extract menu text via OCR
+                    // Step 1: OCR menu
                     const base64Image = imageData.split(',')[1];
                     const ocrResponse = await fetch(
                         `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
@@ -1433,9 +1414,7 @@ Based on the extracted text, estimate the meal's nutritional content for Peter's
                     const ocrData = await ocrResponse.json();
                     const menuText = ocrData.responses?.[0]?.textAnnotations?.[0]?.description || '';
 
-                    console.log('Menu OCR text:', menuText);
-
-                    // Step 2: Get Claude's recommendation based on menu TEXT
+                    // Step 2: Get recommendation
                     const claudeResponse = await fetch('https://anthropic-proxy.peter-5aa.workers.dev/', {
                         method: 'POST',
                         headers: {
@@ -1447,37 +1426,23 @@ Based on the extracted text, estimate the meal's nutritional content for Peter's
                             max_tokens: 2000,
                             messages: [{
                                 role: 'user',
-                                content: `You are Peter's nutrition advisor. Based on text extracted from a restaurant menu via OCR, recommend the best option.
+                                content: `Recommend best menu item for Peter's genetics and ${recoveryScore}% recovery.
 
-**Menu text extracted:**
-${menuText || '[No text detected]'}
+Menu: ${menuText}
 
-**Peter's Genetic Profile:**
-- IL-6 GG: Inflammation risk (omega-3, anti-inflammatory priority)
-- LDL-R CT: Saturated fat sensitivity (<7%)
-- Diabetes variants: Low GI, controlled carbs
-- Fat-sensitive: Total fat 25-30%
+Genetics: IL-6 GG (inflammation), LDL-R CT (sat fat), diabetes variants (low GI), fat-sensitive
+Targets: 30g+ protein, <7% sat fat, 10g+ fiber, 25-30% total fat
 
-**Per Meal Targets:** 30g+ protein, 10g+ fibre, <7% saturated fat
-
-**Recovery:** ${recoveryScore ? recoveryScore + '%' : 'Unknown'} ${recoveryScore >= 75 ? '(Training day - higher protein OK)' : recoveryScore >= 60 ? '(Moderate - anti-inflammatory focus)' : '(Rest - lighter, anti-inflammatory)'}
-
-**Instructions:**
-Scan the menu text and recommend the BEST dish for Peter's genetics and recovery.
-Return ONLY valid JSON in code fences.
+JSON response:
 
 \`\`\`json
 {
-  "recommendedDish": "Exact menu item name from text",
-  "reasoning": "Why this is optimal for genetics and recovery",
-  "macroEstimate": {
-    "protein": "30-35g",
-    "carbs": "40g",
-    "fat": "20g"
-  },
-  "geneticBenefits": "Specific benefits for IL-6, LDL-R, diabetes variants",
-  "modifications": "What to request (e.g., sauce on side, less oil)",
-  "alternatives": "Second choice if first unavailable"
+  "recommendedDish": "Menu item name",
+  "reasoning": "Why optimal",
+  "macroEstimate": {"protein": "30g", "carbs": "40g", "fat": "20g"},
+  "geneticBenefits": "How it addresses variants",
+  "modifications": "Requests to make",
+  "alternatives": "2nd choice"
 }
 \`\`\``
                             }]
@@ -1485,39 +1450,19 @@ Return ONLY valid JSON in code fences.
                     });
 
                     const claudeData = await claudeResponse.json();
-                    console.log('Claude menu response:', claudeData);
-                    
                     if (claudeData.content?.[0]?.text) {
-                        const responseText = claudeData.content[0].text;
-                        const jsonMatch = responseText.match(/```json\n?([\s\S]*?)\n?```/) || 
-                                        responseText.match(/\{[\s\S]*\}/);
+                        const jsonMatch = claudeData.content[0].text.match(/```json\n?([\s\S]*?)\n?```/) || 
+                                        claudeData.content[0].text.match(/\{[\s\S]*\}/);
                         if (jsonMatch) {
-                            const jsonText = jsonMatch[1] || jsonMatch[0];
-                            setMenuRecommendation(JSON.parse(jsonText));
-                            console.log('✓ Menu recommendation generated');
-                        } else {
-                            alert('Could not parse menu recommendation. Check console.');
+                            setMenuRecommendation(JSON.parse(jsonMatch[1] || jsonMatch[0]));
                         }
                     }
                 } catch (error) {
-                    console.error('Menu error:', error);
-                    alert('Error: ' + error.message);
+                    console.error('Menu analysis error:', error);
+                    alert('Error analysing menu: ' + error.message);
                 } finally {
                     setMenuAnalysing(false);
                 }
-            };
-
-                const challenges = JSON.parse(localStorage.getItem('fndtn-monthly-challenges') || '[]');
-                const currentMonth = new Date().toLocaleDateString('en-AU', { month: 'long', year: 'numeric' });
-                const monthChallenges = challenges.filter(c => c.monthYear === currentMonth);
-                
-                const totalPushups = monthChallenges.reduce((sum, c) => sum + c.pushups.total, 0);
-                const totalPullups = monthChallenges.reduce((sum, c) => sum + c.pullups.total, 0);
-                const daysCompleted = monthChallenges.filter(c => 
-                    c.pushups.total === 100 && c.pullups.total >= 26
-                ).length;
-                
-                return { totalPushups, totalPullups, daysCompleted, totalDays: monthChallenges.length };
             };
 
             const getRecoveryStatus = (score) => {
@@ -2329,7 +2274,7 @@ Make advice specific, actionable, and personalized to today's exact metrics. Be 
                             <span className="card-icon">🍽️</span>
                             <div>
                                 <h2 className="card-title">Log a Meal</h2>
-                                <p className="card-subtitle">Photo → AI analyzes nutrition</p>
+                                <p className="card-subtitle">Photo → AI analyses nutrition</p>
                             </div>
                         </div>
 
@@ -2337,7 +2282,7 @@ Make advice specific, actionable, and personalized to today's exact metrics. Be 
                             <label className="upload-button">
                                 <span className="upload-icon">📸</span>
                                 <span style={{fontWeight: 600, color: '#FFFFFF'}}>Take Meal Photo</span>
-                                <span style={{fontSize: '12px'}}>AI will analyze macros and genetic fit</span>
+                                <span style={{fontSize: '12px'}}>AI will analyse macros and genetic fit</span>
                                 <input
                                     type="file"
                                     accept="image/*"
@@ -2435,7 +2380,7 @@ Make advice specific, actionable, and personalized to today's exact metrics. Be 
                         <div className="card-header">
                             <span className="card-icon">📋</span>
                             <div>
-                                <h2 className="card-title">Menu Analyzer</h2>
+                                <h2 className="card-title">Menu Analyser</h2>
                                 <p className="card-subtitle">Get personalized menu recommendations</p>
                             </div>
                         </div>
@@ -2535,14 +2480,12 @@ Make advice specific, actionable, and personalized to today's exact metrics. Be 
                                         cursor: 'pointer'
                                     }}
                                 >
-                                    Clear & Analyze Different Menu
+                                    Clear & Analyse Different Menu
                                 </button>
                             </div>
                         )}
                     </div>
                 </div>
-            );
-
             );
 
             const renderChallengeTab = () => {
