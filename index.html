@@ -821,11 +821,11 @@
             const [advisors, setAdvisors] = useState([]);
             const [loadingAdvisors, setLoadingAdvisors] = useState(false);
             const [mealPhoto, setMealPhoto] = useState(null);
-            const [mealAnalyzing, setMealAnalyzing] = useState(false);
+            const [mealAnalysing, setMealAnalysing] = useState(false);
             const [currentMeal, setCurrentMeal] = useState(null);
             const [menuPhoto, setMenuPhoto] = useState(null);
             const [menuRecommendation, setMenuRecommendation] = useState(null);
-            const [menuAnalyzing, setMenuAnalyzing] = useState(false);
+            const [menuAnalysing, setMenuAnalysing] = useState(false);
             const [imageLoading, setImageLoading] = useState(false);
 
             // Load state from localStorage
@@ -1291,13 +1291,13 @@ ${ocrText}`
                 return { totalPushups, totalPullups, daysCompleted, totalDays: monthChallenges.length };
             };
 
-            const analyzeMeal = async (imageData) => {
+            const analyseMeal = async (imageData) => {
                 if (!apiKey || !claudeApiKey) {
                     alert('Both Google Vision and Claude API keys required for meal analysis');
                     return;
                 }
 
-                setMealAnalyzing(true);
+                setMealAnalysing(true);
 
                 try {
                     // Step 1: OCR the meal photo
@@ -1322,7 +1322,7 @@ ${ocrText}`
                         detectedText = ocrData.responses[0].textAnnotations[0].description;
                     }
 
-                    // Step 2: Analyze with Claude
+                    // Step 2: Analyse with Claude
                     const claudeResponse = await fetch('https://anthropic-proxy.peter-5aa.workers.dev/', {
                         method: 'POST',
                         headers: {
@@ -1334,7 +1334,7 @@ ${ocrText}`
                             max_tokens: 1500,
                             messages: [{
                                 role: 'user',
-                                content: `Analyze this meal photo for nutritional tracking.
+                                content: `Analyse this meal photo for nutritional tracking.
 
 Detected text: ${detectedText || 'No text detected'}
 
@@ -1350,7 +1350,7 @@ Provide JSON response:
   },
   "keyIngredients": ["ingredient1", "ingredient2"],
   "geneticAlignment": "How this fits IL-6 GG inflammation, LDL-R CT saturated fat sensitivity, diabetes variants",
-  "recoveryOptimization": "How this supports ${recoveryScore}% recovery state",
+  "recoveryOptimisation": "How this supports ${recoveryScore}% recovery state",
   "improvements": "Optional suggestions"
 }
 \`\`\`
@@ -1380,19 +1380,19 @@ Be concise.`
                     }
                 } catch (error) {
                     console.error('Meal analysis error:', error);
-                    alert('Error analyzing meal: ' + error.message);
+                    alert('Error analysing meal: ' + error.message);
                 } finally {
-                    setMealAnalyzing(false);
+                    setMealAnalysing(false);
                 }
             };
 
-            const analyzeMenu = async (imageData) => {
+            const analyseMenu = async (imageData) => {
                 if (!apiKey || !claudeApiKey) {
                     alert('Both Google Vision and Claude API keys required');
                     return;
                 }
 
-                setMenuAnalyzing(true);
+                setMenuAnalysing(true);
 
                 try {
                     // Step 1: OCR menu
@@ -1459,9 +1459,9 @@ JSON response:
                     }
                 } catch (error) {
                     console.error('Menu analysis error:', error);
-                    alert('Error analyzing menu: ' + error.message);
+                    alert('Error analysing menu: ' + error.message);
                 } finally {
-                    setMenuAnalyzing(false);
+                    setMenuAnalysing(false);
                 }
             };
 
@@ -1532,7 +1532,7 @@ JSON response:
 
                 try {
                     const dayName = new Date().toLocaleDateString('en-AU', { weekday: 'long' });
-                    const prompt = `You are the Virtual Advisory Board for Peter Tonagh, providing personalized recovery and performance guidance.
+                    const prompt = `You are the Virtual Advisory Board for Peter Tonagh, providing personalised recovery and performance guidance.
 
 **Today's Biomarkers:**
 - Recovery Score: ${score}%
@@ -1596,7 +1596,7 @@ Provide recommendations from these 5 experts in JSON format:
 ]
 \`\`\`
 
-Make advice specific, actionable, and personalized to today's exact metrics. Be direct and tactical.`;
+Make advice specific, actionable, and personalised to today's exact metrics. Be direct and tactical.`;
 
                     const response = await fetch('https://anthropic-proxy.peter-5aa.workers.dev/', {
                         method: 'POST',
@@ -1776,7 +1776,7 @@ Make advice specific, actionable, and personalized to today's exact metrics. Be 
                                         <div style={{flex: 1}}>
                                             <h2 className="card-title">Virtual Advisory Board</h2>
                                             <p className="card-subtitle">
-                                                {claudeApiKey ? 'AI-powered personalized recommendations' : 'Expert recommendations'}
+                                                {claudeApiKey ? 'AI-powered personalised recommendations' : 'Expert recommendations'}
                                             </p>
                                         </div>
                                         {loadingAdvisors && (
@@ -2274,7 +2274,7 @@ Make advice specific, actionable, and personalized to today's exact metrics. Be 
                             <span className="card-icon">🍽️</span>
                             <div>
                                 <h2 className="card-title">Log a Meal</h2>
-                                <p className="card-subtitle">Photo → AI analyzes nutrition</p>
+                                <p className="card-subtitle">Photo → AI analyses nutrition</p>
                             </div>
                         </div>
 
@@ -2282,7 +2282,7 @@ Make advice specific, actionable, and personalized to today's exact metrics. Be 
                             <label className="upload-button">
                                 <span className="upload-icon">📸</span>
                                 <span style={{fontWeight: 600, color: '#FFFFFF'}}>Take Meal Photo</span>
-                                <span style={{fontSize: '12px'}}>AI will analyze macros and genetic fit</span>
+                                <span style={{fontSize: '12px'}}>AI will analyse macros and genetic fit</span>
                                 <input
                                     type="file"
                                     accept="image/*"
@@ -2293,7 +2293,7 @@ Make advice specific, actionable, and personalized to today's exact metrics. Be 
                                             const reader = new FileReader();
                                             reader.onload = (ev) => {
                                                 setMealPhoto(ev.target.result);
-                                                analyzeMeal(ev.target.result);
+                                                analyseMeal(ev.target.result);
                                             };
                                             reader.readAsDataURL(file);
                                         }
@@ -2303,10 +2303,10 @@ Make advice specific, actionable, and personalized to today's exact metrics. Be 
                         ) : (
                             <div>
                                 <img src={mealPhoto} alt="Meal" style={{width: '100%', borderRadius: '12px', marginBottom: '16px'}} />
-                                {mealAnalyzing ? (
+                                {mealAnalysing ? (
                                     <div style={{textAlign: 'center', padding: '20px', color: '#7D7D7D'}}>
                                         <div style={{fontSize: '32px', marginBottom: '8px'}}>⏳</div>
-                                        <div>Analyzing meal...</div>
+                                        <div>Analysing meal...</div>
                                     </div>
                                 ) : currentMeal && (
                                     <div style={{background: '#2A2A2A', borderRadius: '12px', padding: '16px', marginBottom: '16px'}}>
@@ -2339,8 +2339,8 @@ Make advice specific, actionable, and personalized to today's exact metrics. Be 
 
                                         {recoveryScore && (
                                             <div style={{fontSize: '13px', color: '#CCCCCC', marginBottom: '12px'}}>
-                                                <div style={{fontWeight: 600, color: '#FFFFFF', marginBottom: '6px'}}>Recovery Optimization:</div>
-                                                {currentMeal.recoveryOptimization}
+                                                <div style={{fontWeight: 600, color: '#FFFFFF', marginBottom: '6px'}}>Recovery Optimisation:</div>
+                                                {currentMeal.recoveryOptimisation}
                                             </div>
                                         )}
 
@@ -2380,8 +2380,8 @@ Make advice specific, actionable, and personalized to today's exact metrics. Be 
                         <div className="card-header">
                             <span className="card-icon">📋</span>
                             <div>
-                                <h2 className="card-title">Menu Analyzer</h2>
-                                <p className="card-subtitle">Get personalized menu recommendations</p>
+                                <h2 className="card-title">Menu Analyser</h2>
+                                <p className="card-subtitle">Get personalised menu recommendations</p>
                             </div>
                         </div>
 
@@ -2400,7 +2400,7 @@ Make advice specific, actionable, and personalized to today's exact metrics. Be 
                                             const reader = new FileReader();
                                             reader.onload = (ev) => {
                                                 setMenuPhoto(ev.target.result);
-                                                analyzeMenu(ev.target.result);
+                                                analyseMenu(ev.target.result);
                                             };
                                             reader.readAsDataURL(file);
                                         }
@@ -2410,10 +2410,10 @@ Make advice specific, actionable, and personalized to today's exact metrics. Be 
                         ) : (
                             <div>
                                 <img src={menuPhoto} alt="Menu" style={{width: '100%', borderRadius: '12px', marginBottom: '16px'}} />
-                                {menuAnalyzing ? (
+                                {menuAnalysing ? (
                                     <div style={{textAlign: 'center', padding: '20px', color: '#7D7D7D'}}>
                                         <div style={{fontSize: '32px', marginBottom: '8px'}}>⏳</div>
-                                        <div>Analyzing menu options...</div>
+                                        <div>Analysing menu options...</div>
                                     </div>
                                 ) : menuRecommendation && (
                                     <div style={{background: '#2A2A2A', borderRadius: '12px', padding: '16px', marginBottom: '16px'}}>
@@ -2480,7 +2480,7 @@ Make advice specific, actionable, and personalized to today's exact metrics. Be 
                                         cursor: 'pointer'
                                     }}
                                 >
-                                    Clear & Analyze Different Menu
+                                    Clear & Analyse Different Menu
                                 </button>
                             </div>
                         )}
