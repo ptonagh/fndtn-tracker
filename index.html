@@ -1292,37 +1292,17 @@ ${ocrText}`
             };
 
             const analyseMeal = async (imageData) => {
-                if (!apiKey || !claudeApiKey) {
-                    alert('Both Google Vision and Claude API keys required for meal analysis');
+                if (!claudeApiKey) {
+                    alert('Claude API key required for meal analysis');
                     return;
                 }
 
                 setMealAnalysing(true);
 
                 try {
-                    // Step 1: OCR the meal photo
+                    // Send image directly to Claude with vision capabilities
                     const base64Image = imageData.split(',')[1];
-                    const ocrResponse = await fetch(
-                        `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
-                        {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                requests: [{
-                                    image: { content: base64Image },
-                                    features: [{ type: 'TEXT_DETECTION' }]
-                                }]
-                            })
-                        }
-                    );
-
-                    const ocrData = await ocrResponse.json();
-                    let detectedText = '';
-                    if (ocrData.responses?.[0]?.textAnnotations) {
-                        detectedText = ocrData.responses[0].textAnnotations[0].description;
-                    }
-
-                    // Step 2: Analyse with Claude
+                    
                     const claudeResponse = await fetch('https://anthropic-proxy.peter-5aa.workers.dev/', {
                         method: 'POST',
                         headers: {
@@ -1334,38 +1314,69 @@ ${ocrText}`
                             max_tokens: 1500,
                             messages: [{
                                 role: 'user',
-                                content: `Analyse this meal photo for nutritional tracking.
+                                content: [
+                                    {
+                                        type: 'image',
+                                        source: {
+                                            type: 'base64',
+                                            media_type: 'image/jpeg',
+                                            data: base64Image
+                                        }
+                                    },
+                                    {
+                                        type: 'text',
+                                        text: `Analyse this meal photo for Peter's nutritional tracking.
 
-Detected text: ${detectedText || 'No text detected'}
+**Peter's Genetic Profile:**
+- IL-6 GG: Elevated inflammation risk (needs anti-inflammatory foods)
+- LDL-R CT: Saturated fat sensitivity (limit to <7% calories)
+- Diabetes variants: TCF7L2, WFS1, SLC30A8 (low glycemic emphasis)
+- Fat-sensitive: FTO AT, PPARG CC, APOA5 TT (total fat 25-30%)
 
-Provide JSON response:
+**Targets:** 30g+ protein, 10g+ fibre, <7% saturated fat per meal
+
+**Current Recovery:** ${recoveryScore}% ${recoveryScore >= 75 ? '(GREEN - training day)' : recoveryScore >= 60 ? '(AMBER - moderate)' : '(RED - rest day)'}
+
+Provide analysis in JSON format:
 
 \`\`\`json
 {
-  "mealName": "Brief description",
+  "mealName": "Brief meal description",
   "estimatedMacros": {
     "protein": "30-35g",
     "carbs": "40-50g",
     "fat": "15-20g"
   },
-  "keyIngredients": ["ingredient1", "ingredient2"],
-  "geneticAlignment": "How this fits IL-6 GG inflammation, LDL-R CT saturated fat sensitivity, diabetes variants",
-  "recoveryOptimisation": "How this supports ${recoveryScore}% recovery state",
-  "improvements": "Optional suggestions"
+  "geneticAlignment": "How this meal addresses IL-6, LDL-R, and diabetes variants",
+  "recoveryOptimisation": "How this supports current recovery state",
+  "improvements": "Optional suggestions for better genetic alignment"
 }
 \`\`\`
 
-Be concise.`
+Be specific and practical.`
+                                    }
+                                ]
                             }]
                         })
                     });
 
                     const claudeData = await claudeResponse.json();
+                    console.log('Claude meal analysis response:', claudeData);
+                    
                     if (claudeData.content?.[0]?.text) {
-                        const jsonMatch = claudeData.content[0].text.match(/```json\n?([\s\S]*?)\n?```/) || 
-                                        claudeData.content[0].text.match(/\{[\s\S]*\}/);
+                        const responseText = claudeData.content[0].text;
+                        console.log('Claude response text:', responseText);
+                        
+                        const jsonMatch = responseText.match(/```json\n?([\s\S]*?)\n?```/) || 
+                                        responseText.match(/\{[\s\S]*\}/);
+                        
                         if (jsonMatch) {
-                            const mealData = JSON.parse(jsonMatch[1] || jsonMatch[0]);
+                            const jsonText = jsonMatch[1] || jsonMatch[0];
+                            console.log('Extracted JSON:', jsonText);
+                            
+                            const mealData = JSON.parse(jsonText);
+                            console.log('Parsed meal data:', mealData);
+                            
                             setCurrentMeal(mealData);
                             
                             // Save to history
@@ -1376,8 +1387,23 @@ Be concise.`
                                 recoveryScore
                             });
                             localStorage.setItem('fndtn-meals', JSON.stringify(meals));
+                            
+                            console.log('✓ Meal analysis complete and saved');
+                        } else {
+                            console.error('No JSON found in response');
+                            alert('Could not parse meal analysis. Response: ' + responseText.substring(0, 100));
                         }
+                    } else {
+                        console.error('Unexpected Claude response format:', claudeData);
+                        alert('Unexpected response from Claude API');
                     }
+                } catch (error) {
+                    console.error('Meal analysis error:', error);
+                    alert('Error analysing meal: ' + error.message);
+                } finally {
+                    setMealAnalysing(false);
+                }
+            };
                 } catch (error) {
                     console.error('Meal analysis error:', error);
                     alert('Error analysing meal: ' + error.message);
@@ -1387,34 +1413,17 @@ Be concise.`
             };
 
             const analyseMenu = async (imageData) => {
-                if (!apiKey || !claudeApiKey) {
-                    alert('Both Google Vision and Claude API keys required');
+                if (!claudeApiKey) {
+                    alert('Claude API key required for menu analysis');
                     return;
                 }
 
                 setMenuAnalysing(true);
 
                 try {
-                    // Step 1: OCR menu
+                    // Send menu image directly to Claude
                     const base64Image = imageData.split(',')[1];
-                    const ocrResponse = await fetch(
-                        `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
-                        {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                requests: [{
-                                    image: { content: base64Image },
-                                    features: [{ type: 'TEXT_DETECTION' }]
-                                }]
-                            })
-                        }
-                    );
 
-                    const ocrData = await ocrResponse.json();
-                    const menuText = ocrData.responses?.[0]?.textAnnotations?.[0]?.description || '';
-
-                    // Step 2: Get recommendation
                     const claudeResponse = await fetch('https://anthropic-proxy.peter-5aa.workers.dev/', {
                         method: 'POST',
                         headers: {
@@ -1426,35 +1435,71 @@ Be concise.`
                             max_tokens: 2000,
                             messages: [{
                                 role: 'user',
-                                content: `Recommend best menu item for Peter's genetics and ${recoveryScore}% recovery.
+                                content: [
+                                    {
+                                        type: 'image',
+                                        source: {
+                                            type: 'base64',
+                                            media_type: 'image/jpeg',
+                                            data: base64Image
+                                        }
+                                    },
+                                    {
+                                        type: 'text',
+                                        text: `Analyse this restaurant menu and recommend the best option for Peter.
 
-Menu: ${menuText}
+**Peter's Genetic Profile:**
+- IL-6 GG: Elevated inflammation risk (prioritise omega-3, anti-inflammatory foods)
+- LDL-R CT: Saturated fat sensitivity (limit saturated fat <7% of calories)
+- Diabetes variants: TCF7L2, WFS1, SLC30A8 (low glycemic index, controlled carbs)
+- Fat-sensitive: FTO AT, PPARG CC, APOA5 TT (total fat 25-30%, quality fats)
+- BCMO1 variants: Needs preformed vitamin A (fish, egg yolks)
 
-Genetics: IL-6 GG (inflammation), LDL-R CT (sat fat), diabetes variants (low GI), fat-sensitive
-Targets: 30g+ protein, <7% sat fat, 10g+ fiber, 25-30% total fat
+**Macronutrient Targets Per Meal:**
+- Protein: 30g minimum
+- Fibre: 10g minimum
+- Saturated fat: <7% of calories
+- Total fat: 25-30% (emphasise omega-3, EVOO, avocado)
 
-JSON response:
+**Current Recovery:** ${recoveryScore}% ${recoveryScore >= 75 ? '(GREEN - training day, higher protein/carbs OK)' : recoveryScore >= 60 ? '(AMBER - moderate, anti-inflammatory focus)' : '(RED - maximum anti-inflammatory, lighter)'}
+
+Provide recommendation in JSON:
 
 \`\`\`json
 {
-  "recommendedDish": "Menu item name",
-  "reasoning": "Why optimal",
-  "macroEstimate": {"protein": "30g", "carbs": "40g", "fat": "20g"},
-  "geneticBenefits": "How it addresses variants",
-  "modifications": "Requests to make",
-  "alternatives": "2nd choice"
+  "recommendedDish": "Specific menu item name",
+  "reasoning": "Why this is optimal for genetics and recovery",
+  "macroEstimate": {
+    "protein": "30-35g",
+    "carbs": "40g",
+    "fat": "20g"
+  },
+  "geneticBenefits": "How it addresses IL-6, LDL-R, diabetes variants",
+  "modifications": "Suggested modifications to request",
+  "alternatives": "Second best option if first unavailable"
 }
-\`\`\``
+\`\`\`
+
+Be specific and actionable.`
+                                    }
+                                ]
                             }]
                         })
                     });
 
                     const claudeData = await claudeResponse.json();
+                    console.log('Claude menu analysis:', claudeData);
+                    
                     if (claudeData.content?.[0]?.text) {
-                        const jsonMatch = claudeData.content[0].text.match(/```json\n?([\s\S]*?)\n?```/) || 
-                                        claudeData.content[0].text.match(/\{[\s\S]*\}/);
+                        const responseText = claudeData.content[0].text;
+                        const jsonMatch = responseText.match(/```json\n?([\s\S]*?)\n?```/) || 
+                                        responseText.match(/\{[\s\S]*\}/);
                         if (jsonMatch) {
-                            setMenuRecommendation(JSON.parse(jsonMatch[1] || jsonMatch[0]));
+                            const jsonText = jsonMatch[1] || jsonMatch[0];
+                            setMenuRecommendation(JSON.parse(jsonText));
+                            console.log('✓ Menu recommendation generated');
+                        } else {
+                            alert('Could not parse menu recommendation. Response: ' + responseText.substring(0, 100));
                         }
                     }
                 } catch (error) {
@@ -2308,7 +2353,7 @@ Make advice specific, actionable, and personalised to today's exact metrics. Be 
                                         <div style={{fontSize: '32px', marginBottom: '8px'}}>⏳</div>
                                         <div>Analysing meal...</div>
                                     </div>
-                                ) : currentMeal && (
+                                ) : currentMeal ? (
                                     <div style={{background: '#2A2A2A', borderRadius: '12px', padding: '16px', marginBottom: '16px'}}>
                                         <h3 style={{fontSize: '16px', fontWeight: 700, marginBottom: '12px', color: '#4A7C59'}}>
                                             ✓ {currentMeal.mealName}
@@ -2318,15 +2363,15 @@ Make advice specific, actionable, and personalised to today's exact metrics. Be 
                                             <div style={{fontSize: '12px', color: '#7D7D7D', marginBottom: '8px', fontWeight: 600}}>ESTIMATED MACROS</div>
                                             <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px'}}>
                                                 <div style={{background: '#1A1A1A', padding: '8px', borderRadius: '6px', textAlign: 'center'}}>
-                                                    <div style={{fontSize: '18px', fontWeight: 700, color: '#2C5AA0'}}>{currentMeal.estimatedMacros.protein}</div>
+                                                    <div style={{fontSize: '18px', fontWeight: 700, color: '#2C5AA0'}}>{currentMeal.estimatedMacros?.protein || '?'}</div>
                                                     <div style={{fontSize: '11px', color: '#7D7D7D'}}>Protein</div>
                                                 </div>
                                                 <div style={{background: '#1A1A1A', padding: '8px', borderRadius: '6px', textAlign: 'center'}}>
-                                                    <div style={{fontSize: '18px', fontWeight: 700, color: '#2C5AA0'}}>{currentMeal.estimatedMacros.carbs}</div>
+                                                    <div style={{fontSize: '18px', fontWeight: 700, color: '#2C5AA0'}}>{currentMeal.estimatedMacros?.carbs || '?'}</div>
                                                     <div style={{fontSize: '11px', color: '#7D7D7D'}}>Carbs</div>
                                                 </div>
                                                 <div style={{background: '#1A1A1A', padding: '8px', borderRadius: '6px', textAlign: 'center'}}>
-                                                    <div style={{fontSize: '18px', fontWeight: 700, color: '#2C5AA0'}}>{currentMeal.estimatedMacros.fat}</div>
+                                                    <div style={{fontSize: '18px', fontWeight: 700, color: '#2C5AA0'}}>{currentMeal.estimatedMacros?.fat || '?'}</div>
                                                     <div style={{fontSize: '11px', color: '#7D7D7D'}}>Fat</div>
                                                 </div>
                                             </div>
@@ -2334,10 +2379,10 @@ Make advice specific, actionable, and personalised to today's exact metrics. Be 
 
                                         <div style={{fontSize: '13px', color: '#CCCCCC', marginBottom: '12px'}}>
                                             <div style={{fontWeight: 600, color: '#FFFFFF', marginBottom: '6px'}}>Genetic Alignment:</div>
-                                            {currentMeal.geneticAlignment}
+                                            {currentMeal.geneticAlignment || 'No alignment data'}
                                         </div>
 
-                                        {recoveryScore && (
+                                        {recoveryScore && currentMeal.recoveryOptimisation && (
                                             <div style={{fontSize: '13px', color: '#CCCCCC', marginBottom: '12px'}}>
                                                 <div style={{fontWeight: 600, color: '#FFFFFF', marginBottom: '6px'}}>Recovery Optimisation:</div>
                                                 {currentMeal.recoveryOptimisation}
@@ -2350,6 +2395,12 @@ Make advice specific, actionable, and personalised to today's exact metrics. Be 
                                                 {currentMeal.improvements}
                                             </div>
                                         )}
+                                    </div>
+                                ) : (
+                                    <div style={{background: '#2A2A2A', borderRadius: '12px', padding: '16px', marginBottom: '16px', textAlign: 'center', color: '#7D7D7D'}}>
+                                        <div style={{fontSize: '24px', marginBottom: '8px'}}>⚠️</div>
+                                        <div>Analysis complete but no data returned.</div>
+                                        <div style={{fontSize: '12px', marginTop: '8px'}}>Check console logs or try again.</div>
                                     </div>
                                 )}
                                 <button
