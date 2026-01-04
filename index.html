@@ -954,6 +954,8 @@
                     return parseWorkoutText(ocrText);
                 }
 
+                console.log('🤖 Sending to Claude API for intelligent parsing...');
+
                 try {
                     const response = await fetch('https://api.anthropic.com/v1/messages', {
                         method: 'POST',
@@ -967,32 +969,46 @@
                             max_tokens: 1024,
                             messages: [{
                                 role: 'user',
-                                content: `Parse this workout text into a structured format. Extract exercises with their sets and reps. Format each exercise as "Exercise Name - Sets x Reps". If there are blocks/rounds, create separate entries for each exercise showing the rounds.
+                                content: `You are parsing a workout board image text. Extract ONLY the exercises with their sets and reps.
 
-Example input: "BLOCK 1 - 3 ROUNDS: Squats x 10, Push-ups x 15"
-Example output:
-Squats - 3x10
+Rules:
+1. Format each exercise as "Exercise Name - Sets x Reps"
+2. If text shows "BLOCK 1 - 3 ROUNDS" or "3 RIR" or similar, that means 3 sets
+3. Ignore rest periods, instructions like "Continuous", "EMOM", block headers
+4. For exercises with rep ranges like "10-12", use "10-12" as the reps
+5. For "e/s" (each side), include it: "10 e/s"
+6. Return ONLY the exercise list, nothing else
+
+Example:
+Input: "BLOCK 1 - 3 ROUNDS\nA. Squats x 10-12\n1-3 RIR\nB. Push-ups x 15\nC. Rest 60 seconds"
+Output:
+Squats - 3x10-12
 Push-ups - 3x15
 
-Workout text:
-${ocrText}
-
-Return ONLY the parsed exercises, one per line, in the format "Exercise Name - Sets x Reps". No explanations, no extra text.`
+Now parse this workout:
+${ocrText}`
                             }]
                         })
                     });
 
                     const data = await response.json();
+                    console.log('Claude API response:', data);
                     
                     if (data.content && data.content[0].text) {
                         const parsedText = data.content[0].text.trim();
+                        console.log('✓ Claude parsed text:', parsedText);
                         return parseWorkoutText(parsedText);
+                    } else if (data.error) {
+                        console.error('Claude API error:', data.error);
+                        alert(`Claude API Error: ${data.error.message || 'Check console for details'}`);
+                        return parseWorkoutText(ocrText);
                     }
                     
                     // Fallback to simple parsing
                     return parseWorkoutText(ocrText);
                 } catch (error) {
                     console.error('Claude API Error:', error);
+                    alert('Error calling Claude API. Check console and API key.');
                     // Fallback to simple parsing
                     return parseWorkoutText(ocrText);
                 }
@@ -1615,11 +1631,23 @@ Return ONLY the parsed exercises, one per line, in the format "Exercise Name - S
 
                                 {/* Editable Text Area */}
                                 <div style={{background: '#2A2A2A', padding: '16px', borderRadius: '12px', marginBottom: '20px'}}>
-                                    <label style={{display: 'block', fontSize: '14px', fontWeight: 600, marginBottom: '8px', color: '#FFFFFF'}}>
-                                        📝 Exercises {ocrText && '(Auto-detected - Edit as needed)'}
-                                    </label>
+                                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
+                                        <label style={{fontSize: '14px', fontWeight: 600, color: '#FFFFFF'}}>
+                                            📝 Exercises {ocrText && '(Detected Text)'}
+                                        </label>
+                                        {customWorkout && customWorkout.exercises && (
+                                            <span style={{fontSize: '12px', color: '#4A7C59', fontWeight: 600}}>
+                                                ✓ {customWorkout.exercises.length} exercises parsed
+                                            </span>
+                                        )}
+                                    </div>
+                                    {claudeApiKey && ocrText && (
+                                        <p style={{fontSize: '11px', color: '#4A7C59', marginBottom: '8px'}}>
+                                            🤖 Claude AI parsing enabled
+                                        </p>
+                                    )}
                                     <p style={{fontSize: '12px', color: '#7D7D7D', marginBottom: '12px'}}>
-                                        {ocrText ? 'Edit the detected text or add exercises' : 'Type/paste exercises, one per line'}
+                                        {ocrText ? 'Edit the detected text if needed' : 'Detected text will appear here'}
                                     </p>
                                     <textarea
                                         value={ocrText}
@@ -1636,7 +1664,7 @@ Return ONLY the parsed exercises, one per line, in the format "Exercise Name - S
                                             resize: 'vertical',
                                             boxSizing: 'border-box'
                                         }}
-                                        placeholder="Squats - 4x8&#10;Deadlifts - 4x6&#10;Lunges - 3x12&#10;&#10;Or tap 'Read Text' button above"
+                                        placeholder="Raw OCR text will appear here..."
                                         onChange={(e) => {
                                             setOcrText(e.target.value);
                                             handleWorkoutTextChange(e.target.value);
