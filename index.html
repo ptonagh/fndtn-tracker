@@ -1762,35 +1762,59 @@ ${ocrText}`
                                 </div>
                             </div>
 
-                            {todayWorkout.exercises.map((exercise, idx) => (
-                                <div key={idx} className="exercise-row">
-                                    <div className="exercise-name">
-                                        {exercise.name} - {exercise.target}
+                            {todayWorkout.exercises.map((exercise, idx) => {
+                                // Extract number of sets/rounds from target
+                                const setsMatch = exercise.target.match(/(\d+)x/);
+                                const numSets = setsMatch ? parseInt(setsMatch[1]) : 1;
+                                
+                                return (
+                                    <div key={idx} className="exercise-row">
+                                        <div className="exercise-name">
+                                            {exercise.name} - {exercise.target}
+                                        </div>
+                                        <div style={{marginTop: '12px'}}>
+                                            {Array.from({length: numSets}, (_, setIdx) => (
+                                                <div key={setIdx} style={{
+                                                    display: 'grid',
+                                                    gridTemplateColumns: 'auto 1fr 1fr',
+                                                    gap: '8px',
+                                                    alignItems: 'center',
+                                                    marginBottom: '8px'
+                                                }}>
+                                                    <div style={{
+                                                        fontSize: '12px',
+                                                        color: '#7D7D7D',
+                                                        fontWeight: 600,
+                                                        minWidth: '60px'
+                                                    }}>
+                                                        Round {setIdx + 1}
+                                                    </div>
+                                                    <input
+                                                        type="number"
+                                                        className="exercise-input"
+                                                        placeholder="Reps"
+                                                        value={workoutData[`${idx}-${setIdx}-reps`] || ''}
+                                                        onChange={(e) => setWorkoutData({
+                                                            ...workoutData,
+                                                            [`${idx}-${setIdx}-reps`]: e.target.value
+                                                        })}
+                                                    />
+                                                    <input
+                                                        type="number"
+                                                        className="exercise-input"
+                                                        placeholder="Weight"
+                                                        value={workoutData[`${idx}-${setIdx}-weight`] || ''}
+                                                        onChange={(e) => setWorkoutData({
+                                                            ...workoutData,
+                                                            [`${idx}-${setIdx}-weight`]: e.target.value
+                                                        })}
+                                                    />
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
-                                    <div className="exercise-inputs">
-                                        <input
-                                            type="number"
-                                            className="exercise-input"
-                                            placeholder="Reps"
-                                            value={workoutData[`${idx}-reps`] || ''}
-                                            onChange={(e) => setWorkoutData({
-                                                ...workoutData,
-                                                [`${idx}-reps`]: e.target.value
-                                            })}
-                                        />
-                                        <input
-                                            type="number"
-                                            className="exercise-input"
-                                            placeholder="Weight (kg)"
-                                            value={workoutData[`${idx}-weight`] || ''}
-                                            onChange={(e) => setWorkoutData({
-                                                ...workoutData,
-                                                [`${idx}-weight`]: e.target.value
-                                            })}
-                                        />
-                                    </div>
-                                </div>
-                            ))}
+                                );
+                            })}
 
                             <div className="input-group" style={{marginTop: '16px'}}>
                                 <label className="input-label">Training Notes</label>
