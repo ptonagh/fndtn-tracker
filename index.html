@@ -930,33 +930,52 @@
                 // Split by lines and filter out empty lines
                 const lines = text.split('\n').filter(line => line.trim());
                 
-                // Group exercises by blocks (look for EMOM time indicators)
+                // Group exercises by blocks (look for EMOM time and station count)
                 let currentBlockTime = null;
+                let currentBlockStations = null;
                 let currentBlockExercises = [];
                 const blocks = [];
                 
                 lines.forEach(line => {
-                    // Check if line contains EMOM time info
+                    // Check if line contains EMOM time info with station count
+                    // Format: "BLOCK 1 - 12MIN EMOM - 3 stations"
+                    const emomWithStationsMatch = line.match(/(\d+)\s*MIN\s*EMOM\s*-\s*(\d+)\s*stations/i);
                     const emomMatch = line.match(/(\d+)-(\d+)\s*MIN\s*EMOM/i) || line.match(/(\d+)\s*MIN\s*EMOM/i);
                     
-                    if (emomMatch) {
+                    if (emomWithStationsMatch) {
                         // Save previous block if exists
                         if (currentBlockExercises.length > 0) {
                             blocks.push({
                                 time: currentBlockTime,
+                                stations: currentBlockStations,
                                 exercises: currentBlockExercises
                             });
                         }
-                        // Start new block - use maximum time
-                        currentBlockTime = emomMatch[2] ? parseInt(emomMatch[2]) : parseInt(emomMatch[1]);
+                        // New block with explicit station count
+                        currentBlockTime = parseInt(emomWithStationsMatch[1]);
+                        currentBlockStations = parseInt(emomWithStationsMatch[2]);
                         currentBlockExercises = [];
-                    } else if (line.includes('-') && !line.match(/BLOCK|MIN/i)) {
+                    } else if (emomMatch) {
+                        // Save previous block if exists
+                        if (currentBlockExercises.length > 0) {
+                            blocks.push({
+                                time: currentBlockTime,
+                                stations: currentBlockStations,
+                                exercises: currentBlockExercises
+                            });
+                        }
+                        // Start new block - use maximum time, no station count yet
+                        currentBlockTime = emomMatch[2] ? parseInt(emomMatch[2]) : parseInt(emomMatch[1]);
+                        currentBlockStations = null;
+                        currentBlockExercises = [];
+                    } else if (line.includes('-') && !line.match(/BLOCK|MIN|stations/i)) {
                         // This looks like an exercise line
                         const parts = line.split(/[-–]/);
                         currentBlockExercises.push({
                             name: parts[0].trim(),
                             target: parts[1]?.trim() || '',
-                            blockTime: currentBlockTime
+                            blockTime: currentBlockTime,
+                            blockStations: currentBlockStations
                         });
                     }
                 });
@@ -965,6 +984,7 @@
                 if (currentBlockExercises.length > 0) {
                     blocks.push({
                         time: currentBlockTime,
+                        stations: currentBlockStations,
                         exercises: currentBlockExercises
                     });
                 }
@@ -973,9 +993,10 @@
                 const allExercises = [];
                 blocks.forEach(block => {
                     block.exercises.forEach(ex => {
-                        if (block.time && block.exercises.length > 0) {
-                            // EMOM: rounds = time ÷ exercises in block
-                            const rounds = Math.floor(block.time / block.exercises.length);
+                        if (block.time && (block.stations || block.exercises.length > 0)) {
+                            // EMOM: rounds = time ÷ total stations (including rest)
+                            const totalStations = block.stations || block.exercises.length;
+                            const rounds = Math.floor(block.time / totalStations);
                             allExercises.push({
                                 ...ex,
                                 target: `${rounds}x${ex.target}`,
@@ -1049,11 +1070,13 @@
                             role: 'user',
                             content: `You are parsing a workout board image text. Extract exercises grouped by their blocks with EMOM timing preserved.
 
+CRITICAL: For EMOM blocks, count ALL stations (including Rest) to determine the cycle, but only list actual exercises.
+
 Rules:
-1. Preserve block structure - keep exercises grouped with their EMOM time
-2. Format blocks as: "BLOCK X - [TIME]MIN EMOM" on its own line, then list exercises
-3. Format exercises as "Exercise Name - Reps" (just the reps, not sets - we'll calculate sets from EMOM time)
-4. Ignore "RIR", "Continuous", and rest instructions
+1. Count total stations per EMOM block (exercises + rest periods) for cycle calculation
+2. Format: "BLOCK X - [TIME]MIN EMOM - [TOTAL_STATIONS] stations"
+3. Then list ONLY actual exercises (exclude Rest)
+4. Format exercises as "Exercise Name - Reps"
 5. For rep ranges like "10-12", keep as "10-12"
 6. For "e/s" (each side), include it: "10-12 e/s"
 
@@ -1062,16 +1085,16 @@ Example:
 Input: 
 "BLOCK 1 - 9-12MIN EMOM
 A. Trap Bar Deadlift x 10-12
-1-3 RIR // Continuous
-B. DB Bulg. Split Squat x 5-8 e/s
+B. DB Split Squat x 5-8 e/s
 C. Rest x 60 SECONDS"
 
 Output:
-BLOCK 1 - 12MIN EMOM
+BLOCK 1 - 12MIN EMOM - 3 stations
 Trap Bar Deadlift - x10-12
 DB Bulgarian Split Squat - x5-8 e/s
 
-Important: Use the MAXIMUM time from ranges (12 from "9-12"), and group exercises by their blocks.
+Explanation: 12 minutes with 3 stations (2 exercises + 1 rest) = 4 rounds of each exercise
+But we only list the 2 actual exercises, not the rest period.
 
 Now parse this workout:
 ${ocrText}`
