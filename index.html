@@ -1291,6 +1291,180 @@ ${ocrText}`
                 return { totalPushups, totalPullups, daysCompleted, totalDays: monthChallenges.length };
             };
 
+            const analyzeMeal = async (imageData) => {
+                if (!apiKey || !claudeApiKey) {
+                    alert('Both Google Vision and Claude API keys required for meal analysis');
+                    return;
+                }
+
+                setMealAnalyzing(true);
+
+                try {
+                    // Step 1: OCR the meal photo
+                    const base64Image = imageData.split(',')[1];
+                    const ocrResponse = await fetch(
+                        `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
+                        {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                requests: [{
+                                    image: { content: base64Image },
+                                    features: [{ type: 'TEXT_DETECTION' }]
+                                }]
+                            })
+                        }
+                    );
+
+                    const ocrData = await ocrResponse.json();
+                    let detectedText = '';
+                    if (ocrData.responses?.[0]?.textAnnotations) {
+                        detectedText = ocrData.responses[0].textAnnotations[0].description;
+                    }
+
+                    // Step 2: Analyze with Claude
+                    const claudeResponse = await fetch('https://anthropic-proxy.peter-5aa.workers.dev/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-api-key': claudeApiKey
+                        },
+                        body: JSON.stringify({
+                            model: 'claude-sonnet-4-20250514',
+                            max_tokens: 1500,
+                            messages: [{
+                                role: 'user',
+                                content: `Analyze this meal photo for nutritional tracking.
+
+Detected text: ${detectedText || 'No text detected'}
+
+Provide JSON response:
+
+\`\`\`json
+{
+  "mealName": "Brief description",
+  "estimatedMacros": {
+    "protein": "30-35g",
+    "carbs": "40-50g",
+    "fat": "15-20g"
+  },
+  "keyIngredients": ["ingredient1", "ingredient2"],
+  "geneticAlignment": "How this fits IL-6 GG inflammation, LDL-R CT saturated fat sensitivity, diabetes variants",
+  "recoveryOptimization": "How this supports ${recoveryScore}% recovery state",
+  "improvements": "Optional suggestions"
+}
+\`\`\`
+
+Be concise.`
+                            }]
+                        })
+                    });
+
+                    const claudeData = await claudeResponse.json();
+                    if (claudeData.content?.[0]?.text) {
+                        const jsonMatch = claudeData.content[0].text.match(/```json\n?([\s\S]*?)\n?```/) || 
+                                        claudeData.content[0].text.match(/\{[\s\S]*\}/);
+                        if (jsonMatch) {
+                            const mealData = JSON.parse(jsonMatch[1] || jsonMatch[0]);
+                            setCurrentMeal(mealData);
+                            
+                            // Save to history
+                            const meals = JSON.parse(localStorage.getItem('fndtn-meals') || '[]');
+                            meals.push({
+                                date: new Date().toISOString(),
+                                ...mealData,
+                                recoveryScore
+                            });
+                            localStorage.setItem('fndtn-meals', JSON.stringify(meals));
+                        }
+                    }
+                } catch (error) {
+                    console.error('Meal analysis error:', error);
+                    alert('Error analyzing meal: ' + error.message);
+                } finally {
+                    setMealAnalyzing(false);
+                }
+            };
+
+            const analyzeMenu = async (imageData) => {
+                if (!apiKey || !claudeApiKey) {
+                    alert('Both Google Vision and Claude API keys required');
+                    return;
+                }
+
+                setMenuAnalyzing(true);
+
+                try {
+                    // Step 1: OCR menu
+                    const base64Image = imageData.split(',')[1];
+                    const ocrResponse = await fetch(
+                        `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
+                        {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                requests: [{
+                                    image: { content: base64Image },
+                                    features: [{ type: 'TEXT_DETECTION' }]
+                                }]
+                            })
+                        }
+                    );
+
+                    const ocrData = await ocrResponse.json();
+                    const menuText = ocrData.responses?.[0]?.textAnnotations?.[0]?.description || '';
+
+                    // Step 2: Get recommendation
+                    const claudeResponse = await fetch('https://anthropic-proxy.peter-5aa.workers.dev/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-api-key': claudeApiKey
+                        },
+                        body: JSON.stringify({
+                            model: 'claude-sonnet-4-20250514',
+                            max_tokens: 2000,
+                            messages: [{
+                                role: 'user',
+                                content: `Recommend best menu item for Peter's genetics and ${recoveryScore}% recovery.
+
+Menu: ${menuText}
+
+Genetics: IL-6 GG (inflammation), LDL-R CT (sat fat), diabetes variants (low GI), fat-sensitive
+Targets: 30g+ protein, <7% sat fat, 10g+ fiber, 25-30% total fat
+
+JSON response:
+
+\`\`\`json
+{
+  "recommendedDish": "Menu item name",
+  "reasoning": "Why optimal",
+  "macroEstimate": {"protein": "30g", "carbs": "40g", "fat": "20g"},
+  "geneticBenefits": "How it addresses variants",
+  "modifications": "Requests to make",
+  "alternatives": "2nd choice"
+}
+\`\`\``
+                            }]
+                        })
+                    });
+
+                    const claudeData = await claudeResponse.json();
+                    if (claudeData.content?.[0]?.text) {
+                        const jsonMatch = claudeData.content[0].text.match(/```json\n?([\s\S]*?)\n?```/) || 
+                                        claudeData.content[0].text.match(/\{[\s\S]*\}/);
+                        if (jsonMatch) {
+                            setMenuRecommendation(JSON.parse(jsonMatch[1] || jsonMatch[0]));
+                        }
+                    }
+                } catch (error) {
+                    console.error('Menu analysis error:', error);
+                    alert('Error analyzing menu: ' + error.message);
+                } finally {
+                    setMenuAnalyzing(false);
+                }
+            };
+
             const getRecoveryStatus = (score) => {
                 if (score >= 75) return { status: 'GREEN', color: 'recovery-green', text: '✓ FULL TRAINING CLEARED' };
                 if (score >= 60) return { status: 'AMBER', color: 'recovery-amber', text: '⚠️ MODIFIED TRAINING' };
@@ -2094,20 +2268,222 @@ Make advice specific, actionable, and personalized to today's exact metrics. Be 
 
             const renderNutritionTab = () => (
                 <div className="content">
+                    {/* Meal Tracking Section */}
                     <div className="card">
                         <div className="card-header">
                             <span className="card-icon">🍽️</span>
                             <div>
-                                <h2 className="card-title">Nutrition Tab</h2>
-                                <p className="card-subtitle">Coming soon - AI meal analysis</p>
+                                <h2 className="card-title">Log a Meal</h2>
+                                <p className="card-subtitle">Photo → AI analyzes nutrition</p>
                             </div>
                         </div>
-                        <div style={{padding: '20px', textAlign: 'center', color: '#7D7D7D'}}>
-                            <p>Nutrition tab is rendering! ✓</p>
-                            <p style={{marginTop: '16px', fontSize: '14px'}}>
-                                Testing: {mealPhoto ? 'Photo loaded' : 'No photo'}
-                            </p>
+
+                        {!mealPhoto ? (
+                            <label className="upload-button">
+                                <span className="upload-icon">📸</span>
+                                <span style={{fontWeight: 600, color: '#FFFFFF'}}>Take Meal Photo</span>
+                                <span style={{fontSize: '12px'}}>AI will analyze macros and genetic fit</span>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="file-input"
+                                    onChange={(e) => {
+                                        const file = e.target.files[0];
+                                        if (file) {
+                                            const reader = new FileReader();
+                                            reader.onload = (ev) => {
+                                                setMealPhoto(ev.target.result);
+                                                analyzeMeal(ev.target.result);
+                                            };
+                                            reader.readAsDataURL(file);
+                                        }
+                                    }}
+                                />
+                            </label>
+                        ) : (
+                            <div>
+                                <img src={mealPhoto} alt="Meal" style={{width: '100%', borderRadius: '12px', marginBottom: '16px'}} />
+                                {mealAnalyzing ? (
+                                    <div style={{textAlign: 'center', padding: '20px', color: '#7D7D7D'}}>
+                                        <div style={{fontSize: '32px', marginBottom: '8px'}}>⏳</div>
+                                        <div>Analyzing meal...</div>
+                                    </div>
+                                ) : currentMeal && (
+                                    <div style={{background: '#2A2A2A', borderRadius: '12px', padding: '16px', marginBottom: '16px'}}>
+                                        <h3 style={{fontSize: '16px', fontWeight: 700, marginBottom: '12px', color: '#4A7C59'}}>
+                                            ✓ {currentMeal.mealName}
+                                        </h3>
+                                        
+                                        <div style={{marginBottom: '12px'}}>
+                                            <div style={{fontSize: '12px', color: '#7D7D7D', marginBottom: '8px', fontWeight: 600}}>ESTIMATED MACROS</div>
+                                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px'}}>
+                                                <div style={{background: '#1A1A1A', padding: '8px', borderRadius: '6px', textAlign: 'center'}}>
+                                                    <div style={{fontSize: '18px', fontWeight: 700, color: '#2C5AA0'}}>{currentMeal.estimatedMacros.protein}</div>
+                                                    <div style={{fontSize: '11px', color: '#7D7D7D'}}>Protein</div>
+                                                </div>
+                                                <div style={{background: '#1A1A1A', padding: '8px', borderRadius: '6px', textAlign: 'center'}}>
+                                                    <div style={{fontSize: '18px', fontWeight: 700, color: '#2C5AA0'}}>{currentMeal.estimatedMacros.carbs}</div>
+                                                    <div style={{fontSize: '11px', color: '#7D7D7D'}}>Carbs</div>
+                                                </div>
+                                                <div style={{background: '#1A1A1A', padding: '8px', borderRadius: '6px', textAlign: 'center'}}>
+                                                    <div style={{fontSize: '18px', fontWeight: 700, color: '#2C5AA0'}}>{currentMeal.estimatedMacros.fat}</div>
+                                                    <div style={{fontSize: '11px', color: '#7D7D7D'}}>Fat</div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div style={{fontSize: '13px', color: '#CCCCCC', marginBottom: '12px'}}>
+                                            <div style={{fontWeight: 600, color: '#FFFFFF', marginBottom: '6px'}}>Genetic Alignment:</div>
+                                            {currentMeal.geneticAlignment}
+                                        </div>
+
+                                        {recoveryScore && (
+                                            <div style={{fontSize: '13px', color: '#CCCCCC', marginBottom: '12px'}}>
+                                                <div style={{fontWeight: 600, color: '#FFFFFF', marginBottom: '6px'}}>Recovery Optimization:</div>
+                                                {currentMeal.recoveryOptimization}
+                                            </div>
+                                        )}
+
+                                        {currentMeal.improvements && (
+                                            <div style={{fontSize: '13px', color: '#FF9500', marginBottom: '12px'}}>
+                                                <div style={{fontWeight: 600, marginBottom: '6px'}}>💡 Suggestions:</div>
+                                                {currentMeal.improvements}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                                <button
+                                    onClick={() => {
+                                        setMealPhoto(null);
+                                        setCurrentMeal(null);
+                                    }}
+                                    style={{
+                                        width: '100%',
+                                        background: '#FF3B30',
+                                        border: 'none',
+                                        borderRadius: '8px',
+                                        padding: '12px',
+                                        color: 'white',
+                                        fontSize: '14px',
+                                        fontWeight: 600,
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    Clear & Log Another Meal
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Menu Recommendation Section */}
+                    <div className="card">
+                        <div className="card-header">
+                            <span className="card-icon">📋</span>
+                            <div>
+                                <h2 className="card-title">Menu Analyzer</h2>
+                                <p className="card-subtitle">Get personalized menu recommendations</p>
+                            </div>
                         </div>
+
+                        {!menuPhoto ? (
+                            <label className="upload-button">
+                                <span className="upload-icon">📋</span>
+                                <span style={{fontWeight: 600, color: '#FFFFFF'}}>Upload Restaurant Menu</span>
+                                <span style={{fontSize: '12px'}}>AI recommends best options for your genetics</span>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="file-input"
+                                    onChange={(e) => {
+                                        const file = e.target.files[0];
+                                        if (file) {
+                                            const reader = new FileReader();
+                                            reader.onload = (ev) => {
+                                                setMenuPhoto(ev.target.result);
+                                                analyzeMenu(ev.target.result);
+                                            };
+                                            reader.readAsDataURL(file);
+                                        }
+                                    }}
+                                />
+                            </label>
+                        ) : (
+                            <div>
+                                <img src={menuPhoto} alt="Menu" style={{width: '100%', borderRadius: '12px', marginBottom: '16px'}} />
+                                {menuAnalyzing ? (
+                                    <div style={{textAlign: 'center', padding: '20px', color: '#7D7D7D'}}>
+                                        <div style={{fontSize: '32px', marginBottom: '8px'}}>⏳</div>
+                                        <div>Analyzing menu options...</div>
+                                    </div>
+                                ) : menuRecommendation && (
+                                    <div style={{background: '#2A2A2A', borderRadius: '12px', padding: '16px', marginBottom: '16px'}}>
+                                        <h3 style={{fontSize: '18px', fontWeight: 700, marginBottom: '12px', color: '#4A7C59'}}>
+                                            🎯 Recommended: {menuRecommendation.recommendedDish}
+                                        </h3>
+                                        
+                                        <div style={{fontSize: '14px', color: '#CCCCCC', marginBottom: '12px', lineHeight: 1.6}}>
+                                            {menuRecommendation.reasoning}
+                                        </div>
+
+                                        <div style={{marginBottom: '12px'}}>
+                                            <div style={{fontSize: '12px', color: '#7D7D7D', marginBottom: '8px', fontWeight: 600}}>ESTIMATED MACROS</div>
+                                            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px'}}>
+                                                <div style={{background: '#1A1A1A', padding: '8px', borderRadius: '6px', textAlign: 'center'}}>
+                                                    <div style={{fontSize: '16px', fontWeight: 700, color: '#4A7C59'}}>{menuRecommendation.macroEstimate.protein}</div>
+                                                    <div style={{fontSize: '10px', color: '#7D7D7D'}}>Protein</div>
+                                                </div>
+                                                <div style={{background: '#1A1A1A', padding: '8px', borderRadius: '6px', textAlign: 'center'}}>
+                                                    <div style={{fontSize: '16px', fontWeight: 700, color: '#4A7C59'}}>{menuRecommendation.macroEstimate.carbs}</div>
+                                                    <div style={{fontSize: '10px', color: '#7D7D7D'}}>Carbs</div>
+                                                </div>
+                                                <div style={{background: '#1A1A1A', padding: '8px', borderRadius: '6px', textAlign: 'center'}}>
+                                                    <div style={{fontSize: '16px', fontWeight: 700, color: '#4A7C59'}}>{menuRecommendation.macroEstimate.fat}</div>
+                                                    <div style={{fontSize: '10px', color: '#7D7D7D'}}>Fat</div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div style={{fontSize: '13px', color: '#CCCCCC', marginBottom: '12px'}}>
+                                            <div style={{fontWeight: 600, color: '#FFFFFF', marginBottom: '6px'}}>🧬 Genetic Benefits:</div>
+                                            {menuRecommendation.geneticBenefits}
+                                        </div>
+
+                                        {menuRecommendation.modifications && (
+                                            <div style={{fontSize: '13px', color: '#FF9500', marginBottom: '12px'}}>
+                                                <div style={{fontWeight: 600, marginBottom: '6px'}}>✏️ Suggested Modifications:</div>
+                                                {menuRecommendation.modifications}
+                                            </div>
+                                        )}
+
+                                        {menuRecommendation.alternatives && (
+                                            <div style={{fontSize: '13px', color: '#7D7D7D'}}>
+                                                <div style={{fontWeight: 600, marginBottom: '6px'}}>Alternative:</div>
+                                                {menuRecommendation.alternatives}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                                <button
+                                    onClick={() => {
+                                        setMenuPhoto(null);
+                                        setMenuRecommendation(null);
+                                    }}
+                                    style={{
+                                        width: '100%',
+                                        background: '#FF3B30',
+                                        border: 'none',
+                                        borderRadius: '8px',
+                                        padding: '12px',
+                                        color: 'white',
+                                        fontSize: '14px',
+                                        fontWeight: 600,
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    Clear & Analyze Different Menu
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
             );
