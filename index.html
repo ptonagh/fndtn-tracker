@@ -1361,11 +1361,22 @@ Be concise.`
                     });
 
                     const claudeData = await claudeResponse.json();
+                    console.log('Claude meal analysis response:', claudeData);
+                    
                     if (claudeData.content?.[0]?.text) {
-                        const jsonMatch = claudeData.content[0].text.match(/```json\n?([\s\S]*?)\n?```/) || 
-                                        claudeData.content[0].text.match(/\{[\s\S]*\}/);
+                        const responseText = claudeData.content[0].text;
+                        console.log('Claude response text:', responseText);
+                        
+                        const jsonMatch = responseText.match(/```json\n?([\s\S]*?)\n?```/) || 
+                                        responseText.match(/\{[\s\S]*\}/);
+                        
                         if (jsonMatch) {
-                            const mealData = JSON.parse(jsonMatch[1] || jsonMatch[0]);
+                            const jsonText = jsonMatch[1] || jsonMatch[0];
+                            console.log('Extracted JSON:', jsonText);
+                            
+                            const mealData = JSON.parse(jsonText);
+                            console.log('Parsed meal data:', mealData);
+                            
                             setCurrentMeal(mealData);
                             
                             // Save to history
@@ -1376,7 +1387,15 @@ Be concise.`
                                 recoveryScore
                             });
                             localStorage.setItem('fndtn-meals', JSON.stringify(meals));
+                            
+                            console.log('✓ Meal analysis complete and saved');
+                        } else {
+                            console.error('No JSON found in response');
+                            alert('Could not parse meal analysis. Response: ' + responseText.substring(0, 100));
                         }
+                    } else {
+                        console.error('Unexpected Claude response format:', claudeData);
+                        alert('Unexpected response from Claude API');
                     }
                 } catch (error) {
                     console.error('Meal analysis error:', error);
