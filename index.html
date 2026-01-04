@@ -1292,37 +1292,17 @@ ${ocrText}`
             };
 
             const analyseMeal = async (imageData) => {
-                if (!apiKey || !claudeApiKey) {
-                    alert('Both Google Vision and Claude API keys required for meal analysis');
+                if (!claudeApiKey) {
+                    alert('Claude API key required for meal analysis');
                     return;
                 }
 
                 setMealAnalysing(true);
 
                 try {
-                    // Step 1: OCR the meal photo
+                    // Send meal image directly to Claude for visual analysis
                     const base64Image = imageData.split(',')[1];
-                    const ocrResponse = await fetch(
-                        `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
-                        {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                requests: [{
-                                    image: { content: base64Image },
-                                    features: [{ type: 'TEXT_DETECTION' }]
-                                }]
-                            })
-                        }
-                    );
-
-                    const ocrData = await ocrResponse.json();
-                    let detectedText = '';
-                    if (ocrData.responses?.[0]?.textAnnotations) {
-                        detectedText = ocrData.responses[0].textAnnotations[0].description;
-                    }
-
-                    // Step 2: Analyse with Claude
+                    
                     const claudeResponse = await fetch('https://anthropic-proxy.peter-5aa.workers.dev/', {
                         method: 'POST',
                         headers: {
@@ -1334,47 +1314,58 @@ ${ocrText}`
                             max_tokens: 1500,
                             messages: [{
                                 role: 'user',
-                                content: `You are analysing a meal based on text extracted from a food photo via OCR.
-
-**Text extracted from meal packaging/labels:**
-${detectedText || '[No readable text detected]'}
-
-**Task:** Based on the extracted text, estimate nutritional content for Peter's tracking.
+                                content: [
+                                    {
+                                        type: 'image',
+                                        source: {
+                                            type: 'base64',
+                                            media_type: 'image/jpeg',
+                                            data: base64Image
+                                        }
+                                    },
+                                    {
+                                        type: 'text',
+                                        text: `Analyse this meal photo and estimate nutritional content for Peter's tracking.
 
 **Peter's Genetic Requirements:**
-- IL-6 GG: Anti-inflammatory foods
-- LDL-R CT: Saturated fat <7%
-- Diabetes variants: Low glycemic
+- IL-6 GG: Prioritise anti-inflammatory foods
+- LDL-R CT: Saturated fat <7% of calories
+- Diabetes variants: Low glycemic index
 - Targets: 30g+ protein, 10g+ fibre per meal
 
 **Recovery:** ${recoveryScore || 'Not calculated'}%
 
-Provide JSON response:
+Estimate portion sizes and provide JSON analysis:
 
 \`\`\`json
 {
-  "mealName": "Brief description",
+  "mealName": "Description of what you see",
   "estimatedMacros": {
     "protein": "30-35g",
     "carbs": "40-50g",
     "fat": "15-20g"
   },
-  "keyIngredients": ["ingredient1", "ingredient2"],
-  "geneticAlignment": "How this fits IL-6 GG inflammation, LDL-R CT saturated fat sensitivity, diabetes variants",
-  "recoveryOptimisation": "How this supports ${recoveryScore}% recovery state",
-  "improvements": "Optional suggestions"
+  "geneticAlignment": "How this meal aligns with genetic requirements",
+  "recoveryOptimisation": "Relevance to recovery state",
+  "improvements": "Suggestions if applicable"
 }
 \`\`\`
 
-Be concise.`
+Return ONLY valid JSON.`
+                                    }
+                                ]
                             }]
                         })
                     });
 
                     const claudeData = await claudeResponse.json();
+                    console.log('Claude meal analysis:', claudeData);
+                    
                     if (claudeData.content?.[0]?.text) {
-                        const jsonMatch = claudeData.content[0].text.match(/```json\n?([\s\S]*?)\n?```/) || 
-                                        claudeData.content[0].text.match(/\{[\s\S]*\}/);
+                        const responseText = claudeData.content[0].text;
+                        const jsonMatch = responseText.match(/```json\n?([\s\S]*?)\n?```/) || 
+                                        responseText.match(/\{[\s\S]*\}/);
+                        
                         if (jsonMatch) {
                             const mealData = JSON.parse(jsonMatch[1] || jsonMatch[0]);
                             setCurrentMeal(mealData);
@@ -1387,9 +1378,19 @@ Be concise.`
                                 recoveryScore
                             });
                             localStorage.setItem('fndtn-meals', JSON.stringify(meals));
+                            
+                            console.log('✓ Meal saved');
+                        } else {
+                            alert('Could not parse response. Check console.');
                         }
                     }
                 } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error analysing meal: ' + error.message);
+                } finally {
+                    setMealAnalysing(false);
+                }
+            };
                     console.error('Meal analysis error:', error);
                     alert('Error analysing meal: ' + error.message);
                 } finally {
