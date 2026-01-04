@@ -1334,9 +1334,20 @@ ${ocrText}`
                             max_tokens: 1500,
                             messages: [{
                                 role: 'user',
-                                content: `Analyse this meal photo for nutritional tracking.
+                                content: `You are analysing a meal based on text extracted from a food photo via OCR.
 
-Detected text: ${detectedText || 'No text detected'}
+**Text extracted from meal packaging/labels:**
+${detectedText || '[No readable text detected]'}
+
+**Task:** Based on the extracted text, estimate nutritional content for Peter's tracking.
+
+**Peter's Genetic Requirements:**
+- IL-6 GG: Anti-inflammatory foods
+- LDL-R CT: Saturated fat <7%
+- Diabetes variants: Low glycemic
+- Targets: 30g+ protein, 10g+ fibre per meal
+
+**Recovery:** ${recoveryScore || 'Not calculated'}%
 
 Provide JSON response:
 
