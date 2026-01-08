@@ -830,6 +830,11 @@
             const [menuAnalysing, setMenuAnalysing] = useState(false);
             const [imageLoading, setImageLoading] = useState(false);
 
+            // Whoop integration state
+            const [whoopConnected, setWhoopConnected] = useState(false);
+            const [whoopAccessToken, setWhoopAccessToken] = useState(localStorage.getItem('whoop-access-token') || '');
+            const [whoopSyncing, setWhoopSyncing] = useState(false);
+
             // Load state from localStorage
             useEffect(() => {
                 const stored = localStorage.getItem('fndtn-tracker-state');
@@ -908,6 +913,84 @@
 
                 return Math.max(0, Math.min(100, Math.round(score)));
             };
+
+            // Whoop Integration Functions
+            const connectWhoop = () => {
+                try {
+                    const whoopAuthUrl = 'https://api.prod.whoop.com/oauth/v2/authorize' +
+                        '?client_id=8bd2a955-6f43-4cf1-90d0-806819258104' +
+                        '&redirect_uri=https://ptonagh.github.io/fndtn-tracker/callback.html' +
+                        '&response_type=code' +
+                        '&scope=read:recovery read:sleep read:cycles';
+
+                    console.log('Redirecting to Whoop OAuth...');
+                    window.location.href = whoopAuthUrl;
+                } catch (error) {
+                    console.error('Whoop connect error:', error);
+                    alert('Failed to connect to Whoop: ' + error.message);
+                }
+            };
+
+            const syncWhoopData = async () => {
+                if (!whoopAccessToken) {
+                    alert('Please connect your Whoop account first');
+                    return;
+                }
+
+                setWhoopSyncing(true);
+
+                try {
+                    console.log('Syncing Whoop data...');
+                    const response = await fetch('https://anthropic-proxy.peter-5aa.workers.dev/whoop/data', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            access_token: whoopAccessToken
+                        })
+                    });
+
+                    const data = await response.json();
+                    console.log('Whoop sync response:', data);
+
+                    if (!response.ok) {
+                        if (data.error === 'token_expired') {
+                            alert('Whoop token expired. Please reconnect.');
+                            setWhoopConnected(false);
+                            localStorage.removeItem('whoop-access-token');
+                            setWhoopAccessToken('');
+                            return;
+                        }
+                        throw new Error(data.error || 'Sync failed');
+                    }
+
+                    // Map Whoop data to recovery data
+                    setRecoveryData({
+                        sleepPerformance: Math.round(data.sleepPerformance * 100), // Convert 0-1 to percentage
+                        hrv: Math.round(data.hrv),
+                        sleepDebt: Math.round(data.sleepDebt / 60000), // Convert ms to minutes
+                        sleepDuration: Math.round(data.sleepDuration * 10) / 10 // Round to 1 decimal
+                    });
+
+                    console.log('✓ Whoop data synced successfully');
+                    alert('✓ Whoop data synced! You can now calculate recovery.');
+
+                } catch (error) {
+                    console.error('Whoop sync error:', error);
+                    alert('Failed to sync Whoop data: ' + error.message);
+                } finally {
+                    setWhoopSyncing(false);
+                }
+            };
+
+            // Check if we have a valid Whoop token on mount
+            useEffect(() => {
+                if (whoopAccessToken) {
+                    setWhoopConnected(true);
+                    console.log('Whoop token found in localStorage');
+                }
+            }, []);
 
             const handleImageUpload = (event) => {
                 const file = event.target.files[0];
@@ -1897,12 +1980,46 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
             const renderRecoveryTab = () => {
                 return (
                     <div className="content">
+                        {/* Whoop Auto-Sync Card */}
+                        <div className="card" style={{marginBottom: '20px'}}>
+                            <div className="card-header">
+                                <span className="card-icon">⌚</span>
+                                <div style={{flex: 1}}>
+                                    <h2 className="card-title">Whoop Auto-Sync</h2>
+                                    <p className="card-subtitle">
+                                        {whoopConnected ? '✓ Connected' : 'Connect to sync biomarkers automatically'}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {!whoopConnected ? (
+                                <button
+                                    className="button-primary"
+                                    onClick={connectWhoop}
+                                    style={{marginTop: '12px'}}
+                                >
+                                    Connect Whoop Account
+                                </button>
+                            ) : (
+                                <button
+                                    className="button-primary"
+                                    onClick={syncWhoopData}
+                                    disabled={whoopSyncing}
+                                    style={{marginTop: '12px'}}
+                                >
+                                    {whoopSyncing ? '⏳ Syncing...' : '📥 Sync Data'}
+                                </button>
+                            )}
+                        </div>
+
                         <div className="card">
                             <div className="card-header">
                                 <span className="card-icon">📊</span>
                                 <div>
                                     <h2 className="card-title">Daily Biomarkers</h2>
-                                    <p className="card-subtitle">Input today's Whoop metrics</p>
+                                    <p className="card-subtitle">
+                                        {whoopConnected ? 'Sync from Whoop or enter manually' : 'Input today\'s Whoop metrics'}
+                                    </p>
                                 </div>
                             </div>
 
