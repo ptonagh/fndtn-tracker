@@ -972,9 +972,9 @@
 
                     // Map Whoop data to recovery data
                     setRecoveryData({
-                        sleepPerformance: Math.round(data.sleepPerformance * 100), // Convert 0-1 to percentage
+                        sleepPerformance: Math.round(data.sleepPerformance), // Already a percentage (0-100)
                         hrv: Math.round(data.hrv),
-                        sleepDebt: Math.round(data.sleepDebt / 60000), // Convert ms to minutes
+                        sleepDebt: Math.round(data.sleepDebt), // Already in minutes
                         sleepDuration: Math.round(data.sleepDuration * 10) / 10 // Round to 1 decimal
                     });
 
