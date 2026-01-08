@@ -917,11 +917,16 @@
             // Whoop Integration Functions
             const connectWhoop = () => {
                 try {
-                    const whoopAuthUrl = 'https://api.prod.whoop.com/oauth/v2/authorize' +
+                    // Generate random state for CSRF protection
+                    const state = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+                    localStorage.setItem('whoop-oauth-state', state);
+
+                    const whoopAuthUrl = 'https://api.prod.whoop.com/oauth/oauth2/auth' +
                         '?client_id=8bd2a955-6f43-4cf1-90d0-806819258104' +
                         '&redirect_uri=https://ptonagh.github.io/fndtn-tracker/callback.html' +
                         '&response_type=code' +
-                        '&scope=read:recovery read:sleep read:cycles';
+                        '&scope=read:recovery read:sleep read:cycles offline' +
+                        '&state=' + state;
 
                     console.log('Redirecting to Whoop OAuth...');
                     window.location.href = whoopAuthUrl;
