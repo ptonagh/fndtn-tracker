@@ -1300,7 +1300,7 @@ ${ocrText}`
                 setMealAnalysing(true);
 
                 try {
-                    // Step 1: OCR the meal photo
+                    // Step 1: OCR meal photo to extract any visible text (nutrition labels, packaging, etc.)
                     const base64Image = imageData.split(',')[1];
                     const ocrResponse = await fetch(
                         `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
@@ -1317,12 +1317,11 @@ ${ocrText}`
                     );
 
                     const ocrData = await ocrResponse.json();
-                    let detectedText = '';
-                    if (ocrData.responses?.[0]?.textAnnotations) {
-                        detectedText = ocrData.responses[0].textAnnotations[0].description;
-                    }
+                    const extractedText = ocrData.responses?.[0]?.textAnnotations?.[0]?.description || 'No text detected in image';
 
-                    // Step 2: Analyse with Claude
+                    console.log('OCR extracted text:', extractedText);
+
+                    // Step 2: Analyse meal based on extracted text
                     const claudeResponse = await fetch('https://anthropic-proxy.peter-5aa.workers.dev/', {
                         method: 'POST',
                         headers: {
@@ -1334,40 +1333,55 @@ ${ocrText}`
                             max_tokens: 1500,
                             messages: [{
                                 role: 'user',
-                                content: `Analyse this meal photo for nutritional tracking.
+                                content: `Analyse this meal for Peter's tracking based on text extracted from the meal photo via OCR.
 
-Detected text: ${detectedText || 'No text detected'}
+**Text from meal photo (nutrition labels, packaging, menu items):**
+${extractedText}
 
-Provide JSON response:
+**Peter's Genetic Requirements:**
+- IL-6 GG: Prioritise anti-inflammatory foods
+- LDL-R CT: Saturated fat <7% of calories
+- Diabetes variants: Low glycemic index
+- Targets: 30g+ protein, 10g+ fibre per meal
+
+**Current Recovery State:** ${recoveryScore || 'Not calculated'}%
+
+Based on the extracted text, estimate the meal's nutritional content and provide analysis in JSON format:
 
 \`\`\`json
 {
-  "mealName": "Brief description",
+  "mealName": "Description of the meal based on text",
   "estimatedMacros": {
     "protein": "30-35g",
     "carbs": "40-50g",
     "fat": "15-20g"
   },
-  "keyIngredients": ["ingredient1", "ingredient2"],
-  "geneticAlignment": "How this fits IL-6 GG inflammation, LDL-R CT saturated fat sensitivity, diabetes variants",
-  "recoveryOptimisation": "How this supports ${recoveryScore}% recovery state",
-  "improvements": "Optional suggestions"
+  "geneticAlignment": "How this meal aligns with genetic requirements",
+  "recoveryOptimisation": "Relevance to recovery state",
+  "improvements": "Suggestions if applicable"
 }
 \`\`\`
 
-Be concise.`
+Return ONLY valid JSON, no other text.`
                             }]
                         })
                     });
 
                     const claudeData = await claudeResponse.json();
+                    console.log('Claude meal analysis response:', claudeData);
+
                     if (claudeData.content?.[0]?.text) {
-                        const jsonMatch = claudeData.content[0].text.match(/```json\n?([\s\S]*?)\n?```/) || 
-                                        claudeData.content[0].text.match(/\{[\s\S]*\}/);
+                        const responseText = claudeData.content[0].text;
+                        console.log('Claude response text:', responseText);
+
+                        const jsonMatch = responseText.match(/```json\n?([\s\S]*?)\n?```/) ||
+                                        responseText.match(/\{[\s\S]*\}/);
+
                         if (jsonMatch) {
                             const mealData = JSON.parse(jsonMatch[1] || jsonMatch[0]);
                             setCurrentMeal(mealData);
-                            
+                            console.log('✓ Meal data parsed:', mealData);
+
                             // Save to history
                             const meals = JSON.parse(localStorage.getItem('fndtn-meals') || '[]');
                             meals.push({
@@ -1376,7 +1390,14 @@ Be concise.`
                                 recoveryScore
                             });
                             localStorage.setItem('fndtn-meals', JSON.stringify(meals));
+                            console.log('✓ Meal saved to localStorage');
+                        } else {
+                            console.error('Could not parse JSON from response:', responseText);
+                            alert('Could not parse meal analysis. Check console for details.');
                         }
+                    } else {
+                        console.error('No content in Claude response:', claudeData);
+                        alert('No response from Claude API. Check console for details.');
                     }
                 } catch (error) {
                     console.error('Meal analysis error:', error);
