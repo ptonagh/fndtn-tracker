@@ -44,6 +44,7 @@
             top: 0;
             z-index: 100;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            position: relative;
         }
 
         .header h1 {
@@ -644,6 +645,193 @@
             gap: 12px;
             margin-top: 16px;
         }
+
+        /* Hamburger Menu Styles */
+        .hamburger-button {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 4px;
+            line-height: 1;
+            z-index: 101;
+        }
+
+        .menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 200;
+            opacity: 0;
+            animation: fadeIn 0.2s forwards;
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+
+        .slide-out-menu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 280px;
+            background: #1A1A1A;
+            z-index: 201;
+            box-shadow: 4px 0 12px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            transform: translateX(-100%);
+            animation: slideIn 0.3s forwards;
+        }
+
+        @keyframes slideIn {
+            to { transform: translateX(0); }
+        }
+
+        .menu-header {
+            padding: 24px 20px;
+            padding-top: calc(24px + env(safe-area-inset-top));
+            background: linear-gradient(135deg, #2C5AA0 0%, #4A7C59 100%);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .menu-title {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .menu-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .menu-items {
+            flex: 1;
+            padding: 12px 0;
+            overflow-y: auto;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            width: 100%;
+            text-align: left;
+            border-bottom: 1px solid #3A3A3A;
+            transition: background 0.2s;
+        }
+
+        .menu-item:hover {
+            background: #2A2A2A;
+        }
+
+        .menu-item-icon {
+            font-size: 20px;
+        }
+
+        /* Analytics View Styles */
+        .analytics-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 20px;
+            background: #1A1A1A;
+            border-bottom: 1px solid #3A3A3A;
+        }
+
+        .back-button {
+            background: none;
+            border: none;
+            color: #2C5AA0;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .analytics-title {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .analytics-content {
+            padding: 20px;
+        }
+
+        .analytics-card {
+            background: #1A1A1A;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #3A3A3A;
+        }
+
+        .analytics-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .analytics-card-title {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .analytics-card-icon {
+            font-size: 24px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .stat-box {
+            background: #0A0A0A;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #2C5AA0;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: #7D7D7D;
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
     </style>
 </head>
 <body>
@@ -836,6 +1024,10 @@
             const [whoopRefreshToken, setWhoopRefreshToken] = useState(localStorage.getItem('whoop-refresh-token') || '');
             const [whoopSyncing, setWhoopSyncing] = useState(false);
             const [debugLogs, setDebugLogs] = useState([]);
+
+            // Menu and Analytics state
+            const [menuOpen, setMenuOpen] = useState(false);
+            const [showAnalytics, setShowAnalytics] = useState(false);
 
             // Daily macro tracking state
             const [dailyMacroTargets, setDailyMacroTargets] = useState(null);
@@ -4102,10 +4294,250 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
                 );
             };
 
+            // Render slide-out menu
+            const renderMenu = () => {
+                if (!menuOpen) return null;
+
+                return (
+                    <>
+                        <div className="menu-overlay" onClick={() => setMenuOpen(false)} />
+                        <div className="slide-out-menu">
+                            <div className="menu-header">
+                                <div className="menu-title">MENU</div>
+                                <button className="menu-close" onClick={() => setMenuOpen(false)}>
+                                    ✕
+                                </button>
+                            </div>
+                            <div className="menu-items">
+                                <button className="menu-item" onClick={() => {
+                                    setShowAnalytics(true);
+                                    setMenuOpen(false);
+                                }}>
+                                    <span className="menu-item-icon">📊</span>
+                                    <span>Analytics</span>
+                                </button>
+                                <button className="menu-item" onClick={() => {
+                                    // Export data functionality (to be implemented)
+                                    alert('Export feature coming soon!');
+                                    setMenuOpen(false);
+                                }}>
+                                    <span className="menu-item-icon">💾</span>
+                                    <span>Export Data</span>
+                                </button>
+                                <button className="menu-item" onClick={() => {
+                                    alert('Settings feature coming soon!');
+                                    setMenuOpen(false);
+                                }}>
+                                    <span className="menu-item-icon">⚙️</span>
+                                    <span>Settings</span>
+                                </button>
+                                <button className="menu-item" onClick={() => {
+                                    alert('FNDTN Performance Tracker v1.0\n\nOptimised for Peter Tonagh\'s genetic profile.\n\nIntegrates recovery monitoring, supplement tracking, workout logging, and monthly challenges.');
+                                    setMenuOpen(false);
+                                }}>
+                                    <span className="menu-item-icon">ℹ️</span>
+                                    <span>About</span>
+                                </button>
+                            </div>
+                        </div>
+                    </>
+                );
+            };
+
+            // Render analytics view
+            const renderAnalyticsView = () => {
+                // Calculate weekly stats from localStorage data
+                const calculateWeeklyStats = () => {
+                    const workouts = JSON.parse(localStorage.getItem('fndtn-workouts') || '[]');
+                    const meals = JSON.parse(localStorage.getItem('fndtn-meals') || '[]');
+                    const challenges = JSON.parse(localStorage.getItem('fndtn-monthly-challenges') || '[]');
+
+                    const now = Date.now();
+                    const weekAgo = now - (7 * 24 * 60 * 60 * 1000);
+
+                    const weekWorkouts = workouts.filter(w => new Date(w.timestamp).getTime() > weekAgo);
+                    const weekMeals = meals.filter(m => new Date(m.timestamp).getTime() > weekAgo);
+
+                    // Get latest recovery score from state
+                    const avgRecovery = recoveryScore || 0;
+
+                    return {
+                        workoutsCompleted: weekWorkouts.length,
+                        mealsLogged: weekMeals.length,
+                        avgRecovery: Math.round(avgRecovery),
+                        supplementAdherence: Math.round((Object.values(supplementState).filter(Boolean).length / 26) * 100) || 0
+                    };
+                };
+
+                const stats = calculateWeeklyStats();
+
+                return (
+                    <div>
+                        <div className="analytics-header">
+                            <button className="back-button" onClick={() => setShowAnalytics(false)}>
+                                ←
+                            </button>
+                            <div className="analytics-title">Analytics</div>
+                        </div>
+
+                        <div className="analytics-content">
+                            {/* Weekly Summary Card */}
+                            <div className="analytics-card">
+                                <div className="analytics-card-header">
+                                    <div className="analytics-card-title">Weekly Summary</div>
+                                    <div className="analytics-card-icon">📈</div>
+                                </div>
+
+                                <div className="stats-grid">
+                                    <div className="stat-box">
+                                        <div className="stat-value">{stats.workoutsCompleted}</div>
+                                        <div className="stat-label">Workouts</div>
+                                    </div>
+                                    <div className="stat-box">
+                                        <div className="stat-value">{stats.avgRecovery}%</div>
+                                        <div className="stat-label">Avg Recovery</div>
+                                    </div>
+                                    <div className="stat-box">
+                                        <div className="stat-value">{stats.mealsLogged}</div>
+                                        <div className="stat-label">Meals Logged</div>
+                                    </div>
+                                    <div className="stat-box">
+                                        <div className="stat-value">{stats.supplementAdherence}%</div>
+                                        <div className="stat-label">Supplements</div>
+                                    </div>
+                                </div>
+
+                                <div style={{
+                                    background: '#0A0A0A',
+                                    borderRadius: '8px',
+                                    padding: '16px',
+                                    marginTop: '12px'
+                                }}>
+                                    <div style={{fontSize: '13px', color: '#7D7D7D', marginBottom: '8px'}}>
+                                        Weekly Insights
+                                    </div>
+                                    <div style={{fontSize: '14px', lineHeight: '1.6'}}>
+                                        {stats.avgRecovery >= 75 && '🟢 Excellent recovery this week! You\'re primed for high-intensity training.'}
+                                        {stats.avgRecovery >= 60 && stats.avgRecovery < 75 && '🟠 Moderate recovery. Consider reducing training volume.'}
+                                        {stats.avgRecovery < 60 && '🔴 Low recovery detected. Prioritise rest and recovery protocols.'}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Recovery Trends */}
+                            <div className="analytics-card">
+                                <div className="analytics-card-header">
+                                    <div className="analytics-card-title">Recovery Trends</div>
+                                    <div className="analytics-card-icon">📊</div>
+                                </div>
+                                <div style={{
+                                    background: '#0A0A0A',
+                                    borderRadius: '8px',
+                                    padding: '40px 20px',
+                                    textAlign: 'center',
+                                    color: '#7D7D7D'
+                                }}>
+                                    <div style={{fontSize: '32px', marginBottom: '8px'}}>📈</div>
+                                    <div style={{fontSize: '14px'}}>
+                                        Historical trend charts coming soon
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Nutrition Trends */}
+                            <div className="analytics-card">
+                                <div className="analytics-card-header">
+                                    <div className="analytics-card-title">Nutrition Trends</div>
+                                    <div className="analytics-card-icon">🍽️</div>
+                                </div>
+                                <div style={{
+                                    background: '#0A0A0A',
+                                    borderRadius: '8px',
+                                    padding: '16px'
+                                }}>
+                                    <div style={{fontSize: '13px', color: '#7D7D7D', marginBottom: '12px'}}>
+                                        Current Daily Macros
+                                    </div>
+                                    {dailyMacroTargets ? (
+                                        <div className="stats-grid">
+                                            <div className="stat-box">
+                                                <div className="stat-value" style={{fontSize: '18px'}}>
+                                                    {Math.round(consumedMacros.protein)}/{dailyMacroTargets.protein}g
+                                                </div>
+                                                <div className="stat-label">Protein</div>
+                                            </div>
+                                            <div className="stat-box">
+                                                <div className="stat-value" style={{fontSize: '18px'}}>
+                                                    {Math.round(consumedMacros.carbs)}/{dailyMacroTargets.carbs}g
+                                                </div>
+                                                <div className="stat-label">Carbs</div>
+                                            </div>
+                                            <div className="stat-box">
+                                                <div className="stat-value" style={{fontSize: '18px'}}>
+                                                    {Math.round(consumedMacros.fat)}/{dailyMacroTargets.fat}g
+                                                </div>
+                                                <div className="stat-label">Fat</div>
+                                            </div>
+                                            <div className="stat-box">
+                                                <div className="stat-value" style={{fontSize: '18px'}}>
+                                                    {Math.round(consumedMacros.calories)}/{dailyMacroTargets.calories}
+                                                </div>
+                                                <div className="stat-label">Calories</div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div style={{textAlign: 'center', padding: '20px', color: '#7D7D7D'}}>
+                                            Calculate recovery to see macro targets
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Supplement Adherence */}
+                            <div className="analytics-card">
+                                <div className="analytics-card-header">
+                                    <div className="analytics-card-title">Supplement Adherence</div>
+                                    <div className="analytics-card-icon">💊</div>
+                                </div>
+                                <div style={{
+                                    background: '#0A0A0A',
+                                    borderRadius: '8px',
+                                    padding: '16px',
+                                    textAlign: 'center'
+                                }}>
+                                    <div className="stat-value" style={{fontSize: '48px', marginBottom: '8px'}}>
+                                        {stats.supplementAdherence}%
+                                    </div>
+                                    <div className="stat-label" style={{fontSize: '13px'}}>
+                                        Today's Completion
+                                    </div>
+                                    <div style={{
+                                        marginTop: '16px',
+                                        fontSize: '13px',
+                                        color: '#7D7D7D'
+                                    }}>
+                                        {Object.values(supplementState).filter(Boolean).length} of 26 supplements taken
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
             return (
                 <div className="app-container">
-                    <div className="header">
-                        <h1>FNDTN PERFORMANCE</h1>
+                    {renderMenu()}
+
+                    {showAnalytics ? (
+                        renderAnalyticsView()
+                    ) : (
+                        <>
+                            <div className="header">
+                                <button className="hamburger-button" onClick={() => setMenuOpen(true)}>
+                                    ☰
+                                </button>
+                                <h1>FNDTN PERFORMANCE</h1>
                         <div className="subtitle">Push Past Possible</div>
                         {recoveryScore !== null && (
                             <span className={`recovery-badge ${getRecoveryStatus(recoveryScore).color}`}>
@@ -4149,7 +4581,7 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
                             <span className="tab-icon">🍽️</span>
                             <span className="tab-label">Nutrition</span>
                         </button>
-                        <button 
+                        <button
                             className={`tab-button ${activeTab === 'challenge' ? 'active' : ''}`}
                             onClick={() => setActiveTab('challenge')}
                         >
@@ -4157,6 +4589,8 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
                             <span className="tab-label">Challenge</span>
                         </button>
                     </div>
+                        </>
+                    )}
                 </div>
             );
         }
