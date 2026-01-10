@@ -1061,6 +1061,19 @@
                 }
             };
 
+            const disconnectWhoop = () => {
+                if (confirm('Disconnect Whoop? You will need to reconnect to sync data again.')) {
+                    localStorage.removeItem('whoop-access-token');
+                    localStorage.removeItem('whoop-refresh-token');
+                    localStorage.removeItem('whoop-token-expiry');
+                    setWhoopAccessToken('');
+                    setWhoopRefreshToken('');
+                    setWhoopConnected(false);
+                    addDebugLog('🔌 Whoop disconnected - tokens cleared');
+                    alert('Whoop disconnected. Click "Connect Whoop Account" to reconnect with fresh tokens.');
+                }
+            };
+
             // Helper to add debug logs
             const addDebugLog = (message) => {
                 const timestamp = new Date().toLocaleTimeString();
@@ -2567,14 +2580,31 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
                                     Connect Whoop Account
                                 </button>
                             ) : (
-                                <button
-                                    className="button-primary"
-                                    onClick={syncWhoopData}
-                                    disabled={whoopSyncing}
-                                    style={{marginTop: '12px'}}
-                                >
-                                    {whoopSyncing ? '⏳ Syncing...' : '📥 Sync Data'}
-                                </button>
+                                <div style={{marginTop: '12px', display: 'flex', gap: '12px'}}>
+                                    <button
+                                        className="button-primary"
+                                        onClick={syncWhoopData}
+                                        disabled={whoopSyncing}
+                                        style={{flex: 1}}
+                                    >
+                                        {whoopSyncing ? '⏳ Syncing...' : '📥 Sync Data'}
+                                    </button>
+                                    <button
+                                        onClick={disconnectWhoop}
+                                        style={{
+                                            padding: '12px 16px',
+                                            background: '#3A3A3A',
+                                            border: 'none',
+                                            borderRadius: '8px',
+                                            color: '#FFFFFF',
+                                            fontSize: '14px',
+                                            fontWeight: 600,
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        🔌 Disconnect
+                                    </button>
+                                </div>
                             )}
 
                             {/* Debug Log Panel */}
