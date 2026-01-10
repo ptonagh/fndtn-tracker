@@ -677,7 +677,7 @@
                 title: "Post-Workout",
                 icon: "🏋️",
                 supplements: [
-                    { name: "Protein", dose: "25-30g" },
+                    { name: "Protein", dose: "25-30g", proteinGrams: 27 },
                     { name: "Creatine", dose: "5g" },
                     { name: "Vitamin C", dose: "500mg" }
                 ]
@@ -2318,10 +2318,35 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
 
             const toggleSupplement = (timeIndex, suppIndex) => {
                 const key = `${timeIndex}-${suppIndex}`;
+                const supplement = supplementSchedule[timeIndex].supplements[suppIndex];
+                const isCurrentlyChecked = supplementState[key];
+
+                // Update supplement state
                 setSupplementState(prev => ({
                     ...prev,
                     [key]: !prev[key]
                 }));
+
+                // If supplement contains protein, update daily macro tracker
+                if (supplement.proteinGrams) {
+                    if (!isCurrentlyChecked) {
+                        // Checking the supplement - add protein
+                        setConsumedMacros(prev => ({
+                            ...prev,
+                            protein: prev.protein + supplement.proteinGrams,
+                            calories: prev.calories + (supplement.proteinGrams * 4)
+                        }));
+                        console.log(`✓ Added ${supplement.proteinGrams}g protein from ${supplement.name} to daily tracker`);
+                    } else {
+                        // Unchecking the supplement - subtract protein
+                        setConsumedMacros(prev => ({
+                            ...prev,
+                            protein: Math.max(0, prev.protein - supplement.proteinGrams),
+                            calories: Math.max(0, prev.calories - (supplement.proteinGrams * 4))
+                        }));
+                        console.log(`✓ Removed ${supplement.proteinGrams}g protein from ${supplement.name} from daily tracker`);
+                    }
+                }
             };
 
             const calculateSupplementProgress = () => {
