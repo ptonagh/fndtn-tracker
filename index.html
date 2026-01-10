@@ -1119,12 +1119,13 @@
                 const sleep = parseFloat(recoveryData.sleepPerformance);
                 const hrv = parseFloat(recoveryData.hrv);
                 const debt = parseFloat(recoveryData.sleepDebt);
-                
+
                 if (!sleep || !hrv || debt === '') return null;
 
                 // Personal formula with 65% accuracy
-                let score = (sleep * 0.40) + ((hrv / 70) * 48) - (debt * 0.12);
-                
+                // HRV baseline personalized to 51ms (6-month average)
+                let score = (sleep * 0.40) + ((hrv / 51) * 48) - (debt * 0.12);
+
                 // Day of week adjustment
                 const day = new Date().getDay();
                 if (day === 0) score += 4; // Sunday
