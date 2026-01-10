@@ -2355,6 +2355,77 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
                 return Math.round((completed / total) * 100);
             };
 
+            // Get recovery-specific supplement recommendations
+            const getRecoverySupplementRecommendations = (score) => {
+                if (score === null) return null;
+
+                if (score >= 75) {
+                    // GREEN - Optimal Performance
+                    return {
+                        status: 'GREEN',
+                        color: '#4A7C59',
+                        title: '✓ Optimal Performance Protocol',
+                        message: 'Your recovery is excellent. Focus on performance optimization.',
+                        priorities: [
+                            { name: 'L-Citrulline', reason: 'Maximize blood flow and workout performance', timing: 'Pre-workout' },
+                            { name: 'Creatine', reason: 'Peak strength and power output', timing: 'Pre & Post-workout' },
+                            { name: 'Protein', reason: 'Capitalize on recovery capacity', timing: 'Post-workout' }
+                        ],
+                        adjustments: [
+                            'Standard dosages are appropriate',
+                            'Consider pushing training intensity today',
+                            'Your body can handle higher training loads'
+                        ]
+                    };
+                } else if (score >= 60) {
+                    // AMBER - Balanced Recovery
+                    return {
+                        status: 'AMBER',
+                        color: '#FF9500',
+                        title: '⚠️ Recovery Support Protocol',
+                        message: 'Moderate recovery. Prioritise anti-inflammatory and repair supplements.',
+                        priorities: [
+                            { name: 'Omega-3', reason: 'Combat inflammation (IL-6 GG support)', timing: 'Breakfast', emphasize: true },
+                            { name: 'Astaxanthin', reason: 'Powerful anti-inflammatory for eNOS3 TT', timing: 'Breakfast', emphasize: true },
+                            { name: 'Vitamin C', reason: 'Enhanced immune and recovery support', timing: 'Post-workout & Lunch', emphasize: true },
+                            { name: 'Magnesium', reason: 'Muscle recovery and sleep quality', timing: 'Before bed' }
+                        ],
+                        adjustments: [
+                            'Consider extra Vitamin C dose (500mg) post-workout',
+                            'Prioritise Omega-3 and Astaxanthin today',
+                            'Ensure full Magnesium dose before bed (600mg)'
+                        ]
+                    };
+                } else {
+                    // RED - Intensive Recovery
+                    return {
+                        status: 'RED',
+                        color: '#FF3B30',
+                        title: '🛑 Intensive Recovery Protocol',
+                        message: 'Low recovery. Maximum support for repair and inflammation control.',
+                        priorities: [
+                            { name: 'Omega-3', reason: 'Critical anti-inflammatory (IL-6 GG)', timing: 'Breakfast', emphasize: true },
+                            { name: 'Astaxanthin', reason: 'Potent oxidative stress protection', timing: 'Breakfast', emphasize: true },
+                            { name: 'Vitamin C', reason: 'Triple dose for immune and tissue repair', timing: 'Post-workout, Lunch, Extra', emphasize: true },
+                            { name: 'Ashwagandha', reason: 'Reduce cortisol and stress response', timing: 'Breakfast & Before bed', emphasize: true },
+                            { name: 'Magnesium', reason: 'Essential for muscle repair and sleep', timing: 'Before bed', emphasize: true },
+                            { name: 'Berberine', reason: 'Blood sugar stability under stress', timing: 'All meals' }
+                        ],
+                        adjustments: [
+                            '⚠️ Add extra Vitamin C: 1000mg total (500mg post-workout + 500mg lunch)',
+                            '⚠️ Increase Magnesium to 600mg before bed',
+                            '⚠️ Double Ashwagandha: 300mg morning + 300mg evening',
+                            'Do NOT skip Omega-3 or Astaxanthin today',
+                            'Consider reducing training intensity to 50-60%'
+                        ],
+                        optional: [
+                            { name: 'Curcumin', dose: '500mg', reason: 'Additional anti-inflammatory support', timing: 'Breakfast' },
+                            { name: 'Glutamine', dose: '5g', reason: 'Gut and immune system recovery', timing: 'Post-workout' }
+                        ]
+                    };
+                }
+            };
+
             const saveWorkout = () => {
                 const workouts = JSON.parse(localStorage.getItem('fndtn-workouts') || '[]');
                 const today = new Date().toDateString();
@@ -2541,14 +2612,102 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
                 );
             };
 
-            const renderSupplementsTab = () => (
-                <div className="content">
-                    <div className="progress-ring">
-                        <div className="progress-value">{calculateSupplementProgress()}%</div>
-                        <div className="progress-label">DAILY PROGRESS</div>
-                    </div>
+            const renderSupplementsTab = () => {
+                const recoveryRecs = getRecoverySupplementRecommendations(recoveryScore);
 
-                    {supplementSchedule.map((block, timeIndex) => (
+                return (
+                    <div className="content">
+                        <div className="progress-ring">
+                            <div className="progress-value">{calculateSupplementProgress()}%</div>
+                            <div className="progress-label">DAILY PROGRESS</div>
+                        </div>
+
+                        {/* Recovery-Specific Recommendations */}
+                        {recoveryRecs && (
+                            <div className="card" style={{marginBottom: '20px', borderLeft: `4px solid ${recoveryRecs.color}`}}>
+                                <div className="card-header">
+                                    <span className="card-icon">💊</span>
+                                    <div style={{flex: 1}}>
+                                        <h2 className="card-title">{recoveryRecs.title}</h2>
+                                        <p className="card-subtitle" style={{color: recoveryRecs.color}}>
+                                            Recovery: {recoveryScore}% • {recoveryRecs.message}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Priority Supplements */}
+                                <div style={{marginTop: '16px', marginBottom: '16px'}}>
+                                    <div style={{fontSize: '13px', fontWeight: 700, color: '#FFFFFF', marginBottom: '12px'}}>
+                                        🎯 PRIORITY SUPPLEMENTS TODAY:
+                                    </div>
+                                    {recoveryRecs.priorities.map((priority, idx) => (
+                                        <div key={idx} style={{
+                                            background: priority.emphasize ? 'rgba(255, 149, 0, 0.15)' : '#1A1A1A',
+                                            border: priority.emphasize ? '2px solid #FF9500' : '1px solid #3A3A3A',
+                                            borderRadius: '8px',
+                                            padding: '12px',
+                                            marginBottom: '8px'
+                                        }}>
+                                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px'}}>
+                                                <span style={{fontSize: '14px', fontWeight: 700, color: priority.emphasize ? '#FF9500' : '#FFFFFF'}}>
+                                                    {priority.emphasize && '⚠️ '}{priority.name}
+                                                </span>
+                                                <span style={{fontSize: '11px', color: '#7D7D7D', fontStyle: 'italic'}}>
+                                                    {priority.timing}
+                                                </span>
+                                            </div>
+                                            <div style={{fontSize: '13px', color: '#CCCCCC', lineHeight: 1.4}}>
+                                                {priority.reason}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Dosage Adjustments */}
+                                <div style={{
+                                    background: recoveryRecs.status === 'RED' ? 'rgba(255, 59, 48, 0.1)' :
+                                               recoveryRecs.status === 'AMBER' ? 'rgba(255, 149, 0, 0.1)' :
+                                               'rgba(74, 124, 89, 0.1)',
+                                    borderRadius: '8px',
+                                    padding: '12px',
+                                    marginBottom: recoveryRecs.optional ? '12px' : '0'
+                                }}>
+                                    <div style={{fontSize: '12px', fontWeight: 700, color: '#FFFFFF', marginBottom: '8px'}}>
+                                        📋 PROTOCOL ADJUSTMENTS:
+                                    </div>
+                                    {recoveryRecs.adjustments.map((adjustment, idx) => (
+                                        <div key={idx} style={{fontSize: '12px', color: '#CCCCCC', marginBottom: '4px', paddingLeft: '16px', position: 'relative'}}>
+                                            <span style={{position: 'absolute', left: '0'}}>•</span>
+                                            {adjustment}
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Optional Supplements (RED only) */}
+                                {recoveryRecs.optional && (
+                                    <div style={{
+                                        background: '#1A1A1A',
+                                        border: '2px dashed #FF3B30',
+                                        borderRadius: '8px',
+                                        padding: '12px'
+                                    }}>
+                                        <div style={{fontSize: '12px', fontWeight: 700, color: '#FF3B30', marginBottom: '8px'}}>
+                                            🆘 OPTIONAL RECOVERY BOOSTERS:
+                                        </div>
+                                        {recoveryRecs.optional.map((supp, idx) => (
+                                            <div key={idx} style={{fontSize: '12px', color: '#CCCCCC', marginBottom: '6px'}}>
+                                                <span style={{fontWeight: 700, color: '#FFFFFF'}}>{supp.name}</span> ({supp.dose}) - {supp.reason}
+                                                <span style={{fontSize: '11px', color: '#7D7D7D', fontStyle: 'italic', marginLeft: '8px'}}>
+                                                    @ {supp.timing}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {supplementSchedule.map((block, timeIndex) => (
                         <div key={timeIndex} className="card">
                             <div className="card-header">
                                 <span className="card-icon">{block.icon}</span>
@@ -2561,14 +2720,27 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
                             {block.supplements.map((supp, suppIndex) => {
                                 const key = `${timeIndex}-${suppIndex}`;
                                 const completed = supplementState[key];
+
+                                // Check if this supplement is a priority based on recovery
+                                const isPriority = recoveryRecs?.priorities?.some(p => p.name === supp.name);
+                                const isEmphasized = recoveryRecs?.priorities?.find(p => p.name === supp.name)?.emphasize;
+
                                 return (
                                     <div
                                         key={suppIndex}
                                         className={`supplement-item ${completed ? 'completed' : ''}`}
                                         onClick={() => toggleSupplement(timeIndex, suppIndex)}
+                                        style={isPriority ? {
+                                            borderLeft: `3px solid ${isEmphasized ? '#FF9500' : '#4A7C59'}`,
+                                            background: isEmphasized ? 'rgba(255, 149, 0, 0.08)' : undefined
+                                        } : undefined}
                                     >
                                         <div className="supplement-info">
-                                            <div className="supplement-name">{supp.name}</div>
+                                            <div className="supplement-name">
+                                                {isEmphasized && '⚠️ '}
+                                                {supp.name}
+                                                {isPriority && !isEmphasized && ' 🎯'}
+                                            </div>
                                             <div className="supplement-dose">{supp.dose}</div>
                                         </div>
                                         <button className={`check-button ${completed ? 'checked' : ''}`}>
@@ -2579,8 +2751,9 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
                             })}
                         </div>
                     ))}
-                </div>
-            );
+                    </div>
+                );
+            };
 
             const renderWorkoutTab = () => {
                 const dayName = new Date().toLocaleDateString('en-AU', { weekday: 'long' });
