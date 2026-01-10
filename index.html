@@ -833,6 +833,7 @@
             // Whoop integration state
             const [whoopConnected, setWhoopConnected] = useState(false);
             const [whoopAccessToken, setWhoopAccessToken] = useState(localStorage.getItem('whoop-access-token') || '');
+            const [whoopRefreshToken, setWhoopRefreshToken] = useState(localStorage.getItem('whoop-refresh-token') || '');
             const [whoopSyncing, setWhoopSyncing] = useState(false);
 
             // Daily macro tracking state
@@ -1059,7 +1060,50 @@
                 }
             };
 
-            const syncWhoopData = async () => {
+            // Refresh Whoop access token using refresh token
+            const refreshWhoopToken = async () => {
+                if (!whoopRefreshToken) {
+                    console.error('No refresh token available');
+                    return false;
+                }
+
+                try {
+                    console.log('Refreshing Whoop access token...');
+                    const response = await fetch('https://anthropic-proxy.peter-5aa.workers.dev/whoop/refresh', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            refresh_token: whoopRefreshToken
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        console.error('Token refresh failed:', data);
+                        return false;
+                    }
+
+                    // Update tokens
+                    localStorage.setItem('whoop-access-token', data.access_token);
+                    localStorage.setItem('whoop-refresh-token', data.refresh_token);
+                    localStorage.setItem('whoop-token-expiry', Date.now() + (data.expires_in * 1000));
+
+                    setWhoopAccessToken(data.access_token);
+                    setWhoopRefreshToken(data.refresh_token);
+
+                    console.log('✓ Token refreshed successfully');
+                    return true;
+
+                } catch (error) {
+                    console.error('Token refresh error:', error);
+                    return false;
+                }
+            };
+
+            const syncWhoopData = async (isRetry = false) => {
                 if (!whoopAccessToken) {
                     alert('Please connect your Whoop account first');
                     return;
@@ -1083,12 +1127,26 @@
                     console.log('Whoop sync response:', data);
 
                     if (!response.ok) {
-                        if (data.error === 'token_expired') {
-                            alert('Whoop token expired. Please reconnect.');
-                            setWhoopConnected(false);
-                            localStorage.removeItem('whoop-access-token');
-                            setWhoopAccessToken('');
-                            return;
+                        if (data.error === 'token_expired' && !isRetry) {
+                            // Try to refresh the token
+                            console.log('Token expired, attempting refresh...');
+                            const refreshed = await refreshWhoopToken();
+
+                            if (refreshed) {
+                                // Token refreshed successfully, retry sync
+                                console.log('Retrying sync with new token...');
+                                setWhoopSyncing(false); // Reset syncing state before retry
+                                return syncWhoopData(true); // Retry with new token
+                            } else {
+                                // Refresh failed, clear everything
+                                alert('Session expired. Please reconnect to Whoop.');
+                                setWhoopConnected(false);
+                                localStorage.removeItem('whoop-access-token');
+                                localStorage.removeItem('whoop-refresh-token');
+                                setWhoopAccessToken('');
+                                setWhoopRefreshToken('');
+                                return;
+                            }
                         }
                         throw new Error(data.error || 'Sync failed');
                     }
