@@ -1252,7 +1252,7 @@
                 }
 
                 // CSV header
-                let csv = 'Date,Time,Meal Description,Protein (g),Carbs (g),Fat (g),Fiber (g),Calories,Genetic Alignment,Recovery Optimization\n';
+                let csv = 'Date,Time,Meal Description,Protein (g),Carbs (g),Fat (g),Fiber (g),Calories,Genetic Alignment,Recovery Optimisation\n';
 
                 // CSV rows
                 meals.forEach(meal => {
@@ -2245,7 +2245,7 @@ Return ONLY valid JSON, no other text.`;
                 console.log(`✓ Meal confirmed - Added to daily totals: ${protein}g protein, ${carbs}g carbs, ${fat}g fat, ${fiber}g fiber, ${calories} cal`);
             };
 
-            // Edit meal analysis - provide feedback and re-analyze
+            // Edit meal analysis - provide feedback and re-analyse
             const editMeal = async () => {
                 if (!mealEditFeedback.trim()) {
                     alert('Please provide feedback about what needs to be corrected');
@@ -2256,7 +2256,7 @@ Return ONLY valid JSON, no other text.`;
                 setEditingMeal(false);
 
                 try {
-                    // Re-analyze with original photo + user feedback
+                    // Re-analyse with original photo + user feedback
                     const prompt = `Re-analyse this meal based on user feedback.
 
 **Original Analysis:**
@@ -2453,7 +2453,7 @@ JSON response:
                 console.log('✓ Menu recommendation confirmed');
             };
 
-            // Edit menu recommendation - provide feedback and re-analyze
+            // Edit menu recommendation - provide feedback and re-analyse
             const editMenu = async () => {
                 if (!menuEditFeedback.trim()) {
                     alert('Please provide feedback about what needs to be corrected');
@@ -2464,7 +2464,7 @@ JSON response:
                 setEditingMenu(false);
 
                 try {
-                    // Re-analyze with original menu + user feedback
+                    // Re-analyse with original menu + user feedback
                     const prompt = `Re-analyse this menu based on user feedback.
 
 **Original Recommendation:**
@@ -2576,7 +2576,7 @@ Please provide an updated recommendation that addresses the user's feedback whil
                         name: "Dr. Matthew Walker",
                         title: "Sleep Scientist",
                         avatar: "😴",
-                        advice: "Critical sleep debt detected. Training will impair recovery further. Extend tonight's sleep opportunity by 60-90 minutes. Prioritize sleep quality over duration."
+                        advice: "Critical sleep debt detected. Training will impair recovery further. Extend tonight's sleep opportunity by 60-90 minutes. Prioritise sleep quality over duration."
                     });
                     advisors.push({
                         name: "Dr. Peter Attia",
@@ -2740,7 +2740,7 @@ Provide 2-3 sentence feedback from each specialist's perspective on this specifi
     "name": "Dr. Rhonda Patrick",
     "title": "Nutrition Geneticist",
     "avatar": "🧬",
-    "advice": "[Genetic optimization perspective on this meal's nutrients]"
+    "advice": "[Genetic optimisation perspective on this meal's nutrients]"
   },
   {
     "name": "Dr. Peter Attia",
@@ -2853,11 +2853,11 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
                         status: 'GREEN',
                         color: '#4A7C59',
                         title: '✓ Optimal Performance Protocol',
-                        message: 'Your recovery is excellent. Focus on performance optimization.',
+                        message: 'Your recovery is excellent. Focus on performance optimisation.',
                         priorities: [
-                            { name: 'L-Citrulline', reason: 'Maximize blood flow and workout performance', timing: 'Pre-workout' },
+                            { name: 'L-Citrulline', reason: 'Maximise blood flow and workout performance', timing: 'Pre-workout' },
                             { name: 'Creatine', reason: 'Peak strength and power output', timing: 'Pre & Post-workout' },
-                            { name: 'Protein', reason: 'Capitalize on recovery capacity', timing: 'Post-workout' }
+                            { name: 'Protein', reason: 'Capitalise on recovery capacity', timing: 'Post-workout' }
                         ],
                         adjustments: [
                             'Standard dosages are appropriate',
@@ -4548,24 +4548,24 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
                 const chartRef = React.useRef(null);
                 const chartInstanceRef = React.useRef(null);
 
+                // Optimised: Cache localStorage read and filtering
+                const filteredHistory = React.useMemo(() => {
+                    const history = JSON.parse(localStorage.getItem('fndtn-recovery-history') || '[]');
+                    const cutoffDate = Date.now() - (days * 24 * 60 * 60 * 1000);
+                    return history
+                        .filter(entry => new Date(entry.timestamp).getTime() > cutoffDate)
+                        .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                }, [days]);
+
                 React.useEffect(() => {
                     if (!chartRef.current) return;
-
-                    // Get recovery history from localStorage
-                    const history = JSON.parse(localStorage.getItem('fndtn-recovery-history') || '[]');
-
-                    // Filter to selected time period
-                    const cutoffDate = Date.now() - (days * 24 * 60 * 60 * 1000);
-                    const filteredHistory = history.filter(entry =>
-                        new Date(entry.timestamp).getTime() > cutoffDate
-                    ).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
                     // Destroy existing chart if it exists
                     if (chartInstanceRef.current) {
                         chartInstanceRef.current.destroy();
                     }
 
-                    // If no data, show placeholder
+                    // If no data, don't create chart
                     if (filteredHistory.length === 0) {
                         return;
                     }
@@ -4653,14 +4653,7 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
                             chartInstanceRef.current.destroy();
                         }
                     };
-                }, [days]);
-
-                // Get recovery history to check if we have data
-                const history = JSON.parse(localStorage.getItem('fndtn-recovery-history') || '[]');
-                const cutoffDate = Date.now() - (days * 24 * 60 * 60 * 1000);
-                const filteredHistory = history.filter(entry =>
-                    new Date(entry.timestamp).getTime() > cutoffDate
-                );
+                }, [filteredHistory]);
 
                 if (filteredHistory.length === 0) {
                     return (
@@ -4696,10 +4689,14 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
 
             // Render workout consistency calendar
             const renderWorkoutCalendarView = () => {
-                const workouts = JSON.parse(localStorage.getItem('fndtn-workouts') || '[]');
+                // Optimised: Cache workouts read
+                const workouts = React.useMemo(() =>
+                    JSON.parse(localStorage.getItem('fndtn-workouts') || '[]'),
+                    [showWorkoutCalendar]
+                );
 
                 // Helper to get all days in the current month
-                const getDaysInMonth = (date) => {
+                const getDaysInMonth = React.useCallback((date) => {
                     const year = date.getFullYear();
                     const month = date.getMonth();
                     const firstDay = new Date(year, month, 1);
@@ -4727,39 +4724,53 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
                     }
 
                     return days;
-                };
+                }, []);
 
                 // Get workouts for a specific date
-                const getWorkoutsForDate = (date) => {
+                const getWorkoutsForDate = React.useCallback((date) => {
                     const dateStr = date.toDateString();
                     return workouts.filter(w =>
                         new Date(w.timestamp).toDateString() === dateStr
                     );
-                };
+                }, [workouts]);
 
-                // Get color based on workout count
-                const getHeatmapColor = (count) => {
+                // Get colour based on workout count
+                const getHeatmapColor = React.useCallback((count) => {
                     if (count === 0) return '#1A1A1A';
                     if (count === 1) return '#2C5AA0';
                     if (count === 2) return '#4A7C59';
                     return '#FF9500'; // 3+ workouts
-                };
+                }, []);
 
-                const days = getDaysInMonth(calendarMonth);
-                const monthName = calendarMonth.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+                // Optimised: Cache calendar calculations
+                const days = React.useMemo(() =>
+                    getDaysInMonth(calendarMonth),
+                    [calendarMonth, getDaysInMonth]
+                );
 
-                // Calculate stats for current month
-                const currentMonthWorkouts = workouts.filter(w => {
-                    const workoutDate = new Date(w.timestamp);
-                    return workoutDate.getMonth() === calendarMonth.getMonth() &&
-                           workoutDate.getFullYear() === calendarMonth.getFullYear();
-                });
+                const monthName = React.useMemo(() =>
+                    calendarMonth.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
+                    [calendarMonth]
+                );
 
-                const daysWithWorkouts = new Set(currentMonthWorkouts.map(w =>
-                    new Date(w.timestamp).toDateString()
-                )).size;
+                // Optimised: Cache month stats
+                const { currentMonthWorkouts, daysWithWorkouts, totalWorkouts } = React.useMemo(() => {
+                    const filtered = workouts.filter(w => {
+                        const workoutDate = new Date(w.timestamp);
+                        return workoutDate.getMonth() === calendarMonth.getMonth() &&
+                               workoutDate.getFullYear() === calendarMonth.getFullYear();
+                    });
 
-                const totalWorkouts = currentMonthWorkouts.length;
+                    const uniqueDays = new Set(filtered.map(w =>
+                        new Date(w.timestamp).toDateString()
+                    )).size;
+
+                    return {
+                        currentMonthWorkouts: filtered,
+                        daysWithWorkouts: uniqueDays,
+                        totalWorkouts: filtered.length
+                    };
+                }, [workouts, calendarMonth]);
 
                 return (
                     <div>
@@ -4972,24 +4983,29 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
 
             // Render meal history browser
             const renderMealHistoryView = () => {
-                const meals = JSON.parse(localStorage.getItem('fndtn-meals') || '[]');
+                // Optimised: Cache meals read and sorting (fix mutation)
+                const sortedMeals = React.useMemo(() => {
+                    const meals = JSON.parse(localStorage.getItem('fndtn-meals') || '[]');
+                    // Create copy before sorting to avoid mutation
+                    return [...meals].sort((a, b) =>
+                        new Date(b.timestamp) - new Date(a.timestamp)
+                    );
+                }, [showMealHistory]);
 
-                // Sort meals by date (newest first)
-                const sortedMeals = meals.sort((a, b) =>
-                    new Date(b.timestamp) - new Date(a.timestamp)
-                );
+                // Optimised: Cache filtered results
+                const filteredMeals = React.useMemo(() => {
+                    if (!mealSearchTerm) return sortedMeals;
 
-                // Filter meals by search term
-                const filteredMeals = sortedMeals.filter(meal => {
-                    if (!mealSearchTerm) return true;
                     const searchLower = mealSearchTerm.toLowerCase();
-                    const description = (meal.description || '').toLowerCase();
-                    const alignment = (meal.geneticAlignment || '').toLowerCase();
-                    const optimization = (meal.recoveryOptimization || '').toLowerCase();
-                    return description.includes(searchLower) ||
-                           alignment.includes(searchLower) ||
-                           optimization.includes(searchLower);
-                });
+                    return sortedMeals.filter(meal => {
+                        const description = (meal.description || '').toLowerCase();
+                        const alignment = (meal.geneticAlignment || '').toLowerCase();
+                        const optimisation = (meal.recoveryOptimization || '').toLowerCase();
+                        return description.includes(searchLower) ||
+                               alignment.includes(searchLower) ||
+                               optimisation.includes(searchLower);
+                    });
+                }, [sortedMeals, mealSearchTerm]);
 
                 return (
                     <div>
@@ -5108,7 +5124,7 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
                                     {selectedMeal.recoveryOptimization && (
                                         <div style={{marginTop: '16px'}}>
                                             <div style={{fontSize: '13px', fontWeight: 700, marginBottom: '8px'}}>
-                                                💪 Recovery Optimization
+                                                💪 Recovery Optimisation
                                             </div>
                                             <div style={{
                                                 background: '#0A0A0A',
