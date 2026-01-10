@@ -1030,6 +1030,9 @@
             const [menuOpen, setMenuOpen] = useState(false);
             const [showAnalytics, setShowAnalytics] = useState(false);
             const [trendDays, setTrendDays] = useState(30); // 7, 30, or 90
+            const [showMealHistory, setShowMealHistory] = useState(false);
+            const [mealSearchTerm, setMealSearchTerm] = useState('');
+            const [selectedMeal, setSelectedMeal] = useState(null);
 
             // Daily macro tracking state
             const [dailyMacroTargets, setDailyMacroTargets] = useState(null);
@@ -1170,6 +1173,148 @@
                 localStorage.setItem('fndtn-recovery-history', JSON.stringify(filteredHistory));
 
                 return score;
+            };
+
+            // CSV Export Functions
+            const downloadCSV = (filename, csvContent) => {
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', filename);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            };
+
+            const exportRecoveryHistory = () => {
+                const history = JSON.parse(localStorage.getItem('fndtn-recovery-history') || '[]');
+
+                if (history.length === 0) {
+                    alert('No recovery data to export yet. Calculate recovery a few times first!');
+                    return;
+                }
+
+                // CSV header
+                let csv = 'Date,Time,Recovery Score,Sleep Performance %,HRV (ms),Sleep Debt (min),Sleep Duration (hrs)\n';
+
+                // CSV rows
+                history.forEach(entry => {
+                    const date = new Date(entry.timestamp);
+                    const dateStr = date.toLocaleDateString('en-GB');
+                    const timeStr = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                    const bio = entry.biomarkers;
+
+                    csv += `${dateStr},${timeStr},${entry.score},${bio.sleepPerformance},${bio.hrv},${bio.sleepDebt},${bio.sleepDuration}\n`;
+                });
+
+                downloadCSV('FNDTN_Recovery_History.csv', csv);
+            };
+
+            const exportWorkouts = () => {
+                const workouts = JSON.parse(localStorage.getItem('fndtn-workouts') || '[]');
+
+                if (workouts.length === 0) {
+                    alert('No workout data to export yet. Log some workouts first!');
+                    return;
+                }
+
+                // CSV header
+                let csv = 'Date,Time,Workout Type,Program,Total Exercises,Total Rounds,Notes\n';
+
+                // CSV rows
+                workouts.forEach(workout => {
+                    const date = new Date(workout.timestamp);
+                    const dateStr = date.toLocaleDateString('en-GB');
+                    const timeStr = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                    const workoutType = workout.workoutType || 'Custom';
+                    const program = workout.program || 'N/A';
+                    const exerciseCount = workout.blocks?.reduce((sum, block) => sum + (block.stations?.length || 0), 0) || 0;
+                    const roundCount = workout.blocks?.reduce((sum, block) => sum + (block.rounds || 0), 0) || 0;
+                    const notes = (workout.notes || '').replace(/"/g, '""'); // Escape quotes
+
+                    csv += `${dateStr},${timeStr},"${workoutType}","${program}",${exerciseCount},${roundCount},"${notes}"\n`;
+                });
+
+                downloadCSV('FNDTN_Workouts.csv', csv);
+            };
+
+            const exportMeals = () => {
+                const meals = JSON.parse(localStorage.getItem('fndtn-meals') || '[]');
+
+                if (meals.length === 0) {
+                    alert('No meal data to export yet. Log some meals first!');
+                    return;
+                }
+
+                // CSV header
+                let csv = 'Date,Time,Meal Description,Protein (g),Carbs (g),Fat (g),Fiber (g),Calories,Genetic Alignment,Recovery Optimization\n';
+
+                // CSV rows
+                meals.forEach(meal => {
+                    const date = new Date(meal.timestamp);
+                    const dateStr = date.toLocaleDateString('en-GB');
+                    const timeStr = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                    const description = (meal.description || '').replace(/"/g, '""').replace(/\n/g, ' ');
+                    const macros = meal.macros || {};
+                    const alignment = (meal.geneticAlignment || '').replace(/"/g, '""').replace(/\n/g, ' ');
+                    const optimization = (meal.recoveryOptimization || '').replace(/"/g, '""').replace(/\n/g, ' ');
+
+                    csv += `${dateStr},${timeStr},"${description}",${macros.protein || 0},${macros.carbs || 0},${macros.fat || 0},${macros.fiber || 0},${macros.calories || 0},"${alignment}","${optimization}"\n`;
+                });
+
+                downloadCSV('FNDTN_Meals.csv', csv);
+            };
+
+            const exportChallenges = () => {
+                const challenges = JSON.parse(localStorage.getItem('fndtn-monthly-challenges') || '[]');
+
+                if (challenges.length === 0) {
+                    alert('No challenge data to export yet. Complete some challenges first!');
+                    return;
+                }
+
+                // CSV header
+                let csv = 'Date,Month,Year,Challenge Name,Pushup Sets Completed,Pullup Sets,Total Pushups,Total Pullups,Completion %\n';
+
+                // CSV rows
+                challenges.forEach(challenge => {
+                    const date = new Date(challenge.timestamp);
+                    const dateStr = date.toLocaleDateString('en-GB');
+                    const pushupCount = (challenge.pushupSets || []).filter(Boolean).length;
+                    const pullupCount = (challenge.pullupSets || []).filter(s => s !== '').length;
+                    const totalPushups = pushupCount * 20; // 20 per set
+                    const totalPullups = (challenge.pullupSets || []).reduce((sum, s) => sum + (parseInt(s) || 0), 0);
+                    const completion = Math.round(((pushupCount + pullupCount) / 9) * 100); // 5 pushup + 4 pullup sets
+
+                    csv += `${dateStr},${challenge.month || 'N/A'},${challenge.year || 'N/A'},"${challenge.name || 'Monthly Challenge'}",${pushupCount},${pullupCount},${totalPushups},${totalPullups},${completion}\n`;
+                });
+
+                downloadCSV('FNDTN_Challenges.csv', csv);
+            };
+
+            const exportAllData = () => {
+                // Check if any data exists
+                const hasRecovery = JSON.parse(localStorage.getItem('fndtn-recovery-history') || '[]').length > 0;
+                const hasWorkouts = JSON.parse(localStorage.getItem('fndtn-workouts') || '[]').length > 0;
+                const hasMeals = JSON.parse(localStorage.getItem('fndtn-meals') || '[]').length > 0;
+                const hasChallenges = JSON.parse(localStorage.getItem('fndtn-monthly-challenges') || '[]').length > 0;
+
+                if (!hasRecovery && !hasWorkouts && !hasMeals && !hasChallenges) {
+                    alert('No data to export yet. Start using the app to track your recovery, workouts, meals, and challenges!');
+                    return;
+                }
+
+                // Export each dataset that has data
+                if (hasRecovery) exportRecoveryHistory();
+                if (hasWorkouts) exportWorkouts();
+                if (hasMeals) exportMeals();
+                if (hasChallenges) exportChallenges();
+
+                // Show success message
+                const exportedCount = [hasRecovery, hasWorkouts, hasMeals, hasChallenges].filter(Boolean).length;
+                alert(`✓ Exported ${exportedCount} CSV file${exportedCount > 1 ? 's' : ''}!\n\nCheck your Downloads folder for:\n${hasRecovery ? '• Recovery History\n' : ''}${hasWorkouts ? '• Workouts\n' : ''}${hasMeals ? '• Meals\n' : ''}${hasChallenges ? '• Challenges' : ''}`);
             };
 
             // Calculate personalized daily macro targets
@@ -4355,8 +4500,14 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
                                     <span>Analytics</span>
                                 </button>
                                 <button className="menu-item" onClick={() => {
-                                    // Export data functionality (to be implemented)
-                                    alert('Export feature coming soon!');
+                                    setShowMealHistory(true);
+                                    setMenuOpen(false);
+                                }}>
+                                    <span className="menu-item-icon">🍽️</span>
+                                    <span>Meal History</span>
+                                </button>
+                                <button className="menu-item" onClick={() => {
+                                    exportAllData();
                                     setMenuOpen(false);
                                 }}>
                                     <span className="menu-item-icon">💾</span>
@@ -4529,6 +4680,274 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
                         height: '300px'
                     }}>
                         <canvas ref={chartRef}></canvas>
+                    </div>
+                );
+            };
+
+            // Render meal history browser
+            const renderMealHistoryView = () => {
+                const meals = JSON.parse(localStorage.getItem('fndtn-meals') || '[]');
+
+                // Sort meals by date (newest first)
+                const sortedMeals = meals.sort((a, b) =>
+                    new Date(b.timestamp) - new Date(a.timestamp)
+                );
+
+                // Filter meals by search term
+                const filteredMeals = sortedMeals.filter(meal => {
+                    if (!mealSearchTerm) return true;
+                    const searchLower = mealSearchTerm.toLowerCase();
+                    const description = (meal.description || '').toLowerCase();
+                    const alignment = (meal.geneticAlignment || '').toLowerCase();
+                    const optimization = (meal.recoveryOptimization || '').toLowerCase();
+                    return description.includes(searchLower) ||
+                           alignment.includes(searchLower) ||
+                           optimization.includes(searchLower);
+                });
+
+                return (
+                    <div>
+                        <div className="analytics-header">
+                            <button className="back-button" onClick={() => {
+                                setShowMealHistory(false);
+                                setSelectedMeal(null);
+                                setMealSearchTerm('');
+                            }}>
+                                ←
+                            </button>
+                            <div className="analytics-title">
+                                {selectedMeal ? 'Meal Details' : 'Meal History'}
+                            </div>
+                        </div>
+
+                        {selectedMeal ? (
+                            // Meal detail view
+                            <div className="analytics-content">
+                                <div className="analytics-card">
+                                    <div style={{marginBottom: '16px'}}>
+                                        <button
+                                            onClick={() => setSelectedMeal(null)}
+                                            style={{
+                                                padding: '8px 16px',
+                                                background: '#3A3A3A',
+                                                border: 'none',
+                                                borderRadius: '6px',
+                                                color: 'white',
+                                                fontSize: '13px',
+                                                fontWeight: 600,
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            ← Back to List
+                                        </button>
+                                    </div>
+
+                                    <div style={{marginBottom: '20px'}}>
+                                        <div style={{fontSize: '12px', color: '#7D7D7D', marginBottom: '4px'}}>
+                                            {new Date(selectedMeal.timestamp).toLocaleDateString('en-GB', {
+                                                weekday: 'long',
+                                                day: 'numeric',
+                                                month: 'long',
+                                                year: 'numeric'
+                                            })} at {new Date(selectedMeal.timestamp).toLocaleTimeString('en-GB', {
+                                                hour: '2-digit',
+                                                minute: '2-digit'
+                                            })}
+                                        </div>
+                                        <div style={{fontSize: '16px', fontWeight: 700, lineHeight: '1.5'}}>
+                                            {selectedMeal.description}
+                                        </div>
+                                    </div>
+
+                                    <div className="stats-grid">
+                                        <div className="stat-box">
+                                            <div className="stat-value" style={{fontSize: '20px'}}>
+                                                {selectedMeal.macros?.protein || 0}g
+                                            </div>
+                                            <div className="stat-label">Protein</div>
+                                        </div>
+                                        <div className="stat-box">
+                                            <div className="stat-value" style={{fontSize: '20px'}}>
+                                                {selectedMeal.macros?.carbs || 0}g
+                                            </div>
+                                            <div className="stat-label">Carbs</div>
+                                        </div>
+                                        <div className="stat-box">
+                                            <div className="stat-value" style={{fontSize: '20px'}}>
+                                                {selectedMeal.macros?.fat || 0}g
+                                            </div>
+                                            <div className="stat-label">Fat</div>
+                                        </div>
+                                        <div className="stat-box">
+                                            <div className="stat-value" style={{fontSize: '20px'}}>
+                                                {selectedMeal.macros?.calories || 0}
+                                            </div>
+                                            <div className="stat-label">Calories</div>
+                                        </div>
+                                    </div>
+
+                                    {selectedMeal.macros?.fiber > 0 && (
+                                        <div style={{
+                                            background: '#0A0A0A',
+                                            borderRadius: '8px',
+                                            padding: '12px',
+                                            marginTop: '12px',
+                                            textAlign: 'center'
+                                        }}>
+                                            <div style={{fontSize: '18px', fontWeight: 700, color: '#4A7C59'}}>
+                                                {selectedMeal.macros.fiber}g
+                                            </div>
+                                            <div style={{fontSize: '11px', color: '#7D7D7D'}}>FIBER</div>
+                                        </div>
+                                    )}
+
+                                    {selectedMeal.geneticAlignment && (
+                                        <div style={{marginTop: '20px'}}>
+                                            <div style={{fontSize: '13px', fontWeight: 700, marginBottom: '8px'}}>
+                                                🧬 Genetic Alignment
+                                            </div>
+                                            <div style={{
+                                                background: '#0A0A0A',
+                                                borderRadius: '8px',
+                                                padding: '12px',
+                                                fontSize: '13px',
+                                                lineHeight: '1.6',
+                                                whiteSpace: 'pre-wrap'
+                                            }}>
+                                                {selectedMeal.geneticAlignment}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {selectedMeal.recoveryOptimization && (
+                                        <div style={{marginTop: '16px'}}>
+                                            <div style={{fontSize: '13px', fontWeight: 700, marginBottom: '8px'}}>
+                                                💪 Recovery Optimization
+                                            </div>
+                                            <div style={{
+                                                background: '#0A0A0A',
+                                                borderRadius: '8px',
+                                                padding: '12px',
+                                                fontSize: '13px',
+                                                lineHeight: '1.6',
+                                                whiteSpace: 'pre-wrap'
+                                            }}>
+                                                {selectedMeal.recoveryOptimization}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ) : (
+                            // Meal list view
+                            <div className="analytics-content">
+                                {/* Search bar */}
+                                <div style={{marginBottom: '20px'}}>
+                                    <input
+                                        type="text"
+                                        placeholder="Search meals..."
+                                        value={mealSearchTerm}
+                                        onChange={(e) => setMealSearchTerm(e.target.value)}
+                                        style={{
+                                            width: '100%',
+                                            padding: '12px 16px',
+                                            background: '#1A1A1A',
+                                            border: '1px solid #3A3A3A',
+                                            borderRadius: '8px',
+                                            color: 'white',
+                                            fontSize: '14px'
+                                        }}
+                                    />
+                                </div>
+
+                                {filteredMeals.length === 0 ? (
+                                    <div className="analytics-card">
+                                        <div style={{
+                                            textAlign: 'center',
+                                            padding: '40px 20px',
+                                            color: '#7D7D7D'
+                                        }}>
+                                            <div style={{fontSize: '32px', marginBottom: '8px'}}>🍽️</div>
+                                            <div style={{fontSize: '14px', marginBottom: '8px'}}>
+                                                {mealSearchTerm ? 'No meals found' : 'No meals logged yet'}
+                                            </div>
+                                            <div style={{fontSize: '12px'}}>
+                                                {mealSearchTerm ? 'Try a different search term' : 'Log meals in the Nutrition tab to see them here'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div style={{
+                                            fontSize: '12px',
+                                            color: '#7D7D7D',
+                                            marginBottom: '12px'
+                                        }}>
+                                            {filteredMeals.length} meal{filteredMeals.length !== 1 ? 's' : ''} found
+                                        </div>
+
+                                        {filteredMeals.map((meal, index) => (
+                                            <div
+                                                key={index}
+                                                onClick={() => setSelectedMeal(meal)}
+                                                style={{
+                                                    background: '#1A1A1A',
+                                                    borderRadius: '12px',
+                                                    padding: '16px',
+                                                    marginBottom: '12px',
+                                                    border: '1px solid #3A3A3A',
+                                                    cursor: 'pointer',
+                                                    transition: 'all 0.2s'
+                                                }}
+                                                onMouseEnter={(e) => e.currentTarget.style.background = '#2A2A2A'}
+                                                onMouseLeave={(e) => e.currentTarget.style.background = '#1A1A1A'}
+                                            >
+                                                <div style={{marginBottom: '8px'}}>
+                                                    <div style={{fontSize: '11px', color: '#7D7D7D', marginBottom: '4px'}}>
+                                                        {new Date(meal.timestamp).toLocaleDateString('en-GB', {
+                                                            day: 'numeric',
+                                                            month: 'short',
+                                                            year: 'numeric'
+                                                        })} • {new Date(meal.timestamp).toLocaleTimeString('en-GB', {
+                                                            hour: '2-digit',
+                                                            minute: '2-digit'
+                                                        })}
+                                                    </div>
+                                                    <div style={{fontSize: '14px', fontWeight: 600, lineHeight: '1.4'}}>
+                                                        {meal.description?.substring(0, 80)}{meal.description?.length > 80 ? '...' : ''}
+                                                    </div>
+                                                </div>
+
+                                                <div style={{
+                                                    display: 'flex',
+                                                    gap: '12px',
+                                                    fontSize: '12px',
+                                                    color: '#7D7D7D'
+                                                }}>
+                                                    <div>
+                                                        <span style={{color: '#2C5AA0', fontWeight: 600}}>
+                                                            {meal.macros?.protein || 0}g
+                                                        </span> protein
+                                                    </div>
+                                                    <div>•</div>
+                                                    <div>
+                                                        <span style={{fontWeight: 600}}>
+                                                            {meal.macros?.carbs || 0}g
+                                                        </span> carbs
+                                                    </div>
+                                                    <div>•</div>
+                                                    <div>
+                                                        <span style={{fontWeight: 600}}>
+                                                            {meal.macros?.calories || 0}
+                                                        </span> cal
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </>
+                                )}
+                            </div>
+                        )}
                     </div>
                 );
             };
@@ -4762,6 +5181,8 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
 
                     {showAnalytics ? (
                         renderAnalyticsView()
+                    ) : showMealHistory ? (
+                        renderMealHistoryView()
                     ) : (
                         <>
                             <div className="header">
