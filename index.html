@@ -1070,43 +1070,67 @@
 
             // Refresh Whoop access token using refresh token
             const refreshWhoopToken = async () => {
-                if (!whoopRefreshToken) {
-                    addDebugLog('❌ No refresh token available');
+                // Read refresh token from localStorage (state might be stale)
+                const refreshToken = localStorage.getItem('whoop-refresh-token');
+
+                if (!refreshToken) {
+                    addDebugLog('❌ No refresh token in localStorage');
                     return false;
                 }
 
                 try {
-                    addDebugLog('🔄 Refreshing Whoop access token...');
+                    addDebugLog(`🔄 Refreshing token (last 8 chars: ...${refreshToken.substring(refreshToken.length - 8)})`);
+
                     const response = await fetch('https://anthropic-proxy.peter-5aa.workers.dev/whoop/refresh', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
-                            refresh_token: whoopRefreshToken
+                            refresh_token: refreshToken
                         })
                     });
 
                     const data = await response.json();
+                    addDebugLog(`🔄 Refresh response: ${response.status} - ${JSON.stringify(data).substring(0, 50)}...`);
 
                     if (!response.ok) {
-                        addDebugLog(`❌ Token refresh failed: ${data.error || response.status}`);
+                        addDebugLog(`❌ Refresh failed: ${data.error || 'Unknown error'}`);
+                        // If refresh token is invalid/expired, need to reconnect
+                        if (response.status === 401 || data.error === 'invalid_grant') {
+                            addDebugLog('❌ Refresh token expired - please reconnect Whoop');
+                            localStorage.removeItem('whoop-access-token');
+                            localStorage.removeItem('whoop-refresh-token');
+                            setWhoopConnected(false);
+                            alert('Your Whoop session has expired. Please reconnect your account.');
+                        }
                         return false;
                     }
 
-                    // Update tokens
+                    // Verify we got a new access token
+                    if (!data.access_token) {
+                        addDebugLog('❌ No access_token in refresh response');
+                        return false;
+                    }
+
+                    // Update tokens in localStorage
                     localStorage.setItem('whoop-access-token', data.access_token);
-                    localStorage.setItem('whoop-refresh-token', data.refresh_token);
+                    if (data.refresh_token) {
+                        localStorage.setItem('whoop-refresh-token', data.refresh_token);
+                    }
                     localStorage.setItem('whoop-token-expiry', Date.now() + (data.expires_in * 1000));
 
+                    // Update state
                     setWhoopAccessToken(data.access_token);
-                    setWhoopRefreshToken(data.refresh_token);
+                    if (data.refresh_token) {
+                        setWhoopRefreshToken(data.refresh_token);
+                    }
 
-                    addDebugLog('✓ Token refreshed successfully');
+                    addDebugLog(`✅ New token stored (last 8: ...${data.access_token.substring(data.access_token.length - 8)})`);
                     return true;
 
                 } catch (error) {
-                    addDebugLog(`❌ Token refresh error: ${error.message}`);
+                    addDebugLog(`❌ Refresh exception: ${error.message}`);
                     return false;
                 }
             };
