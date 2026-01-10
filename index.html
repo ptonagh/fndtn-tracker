@@ -1104,7 +1104,10 @@
             };
 
             const syncWhoopData = async (isRetry = false) => {
-                if (!whoopAccessToken) {
+                // Read token from localStorage to get the latest value (state might be stale)
+                const currentToken = localStorage.getItem('whoop-access-token');
+
+                if (!currentToken) {
                     alert('Please connect your Whoop account first');
                     return;
                 }
@@ -1119,24 +1122,27 @@
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
-                            access_token: whoopAccessToken
+                            access_token: currentToken
                         })
                     });
 
                     const data = await response.json();
-                    console.log('Whoop sync response:', data);
+                    console.log('Whoop sync response:', response.status, data);
 
                     if (!response.ok) {
-                        if (data.error === 'token_expired' && !isRetry) {
+                        // Check if token expired (401 status or specific error message)
+                        const isTokenExpired = response.status === 401 || data.error === 'token_expired';
+
+                        if (isTokenExpired && !isRetry) {
                             // Try to refresh the token
-                            console.log('Token expired, attempting refresh...');
+                            console.log('Token expired (status:', response.status, '), attempting refresh...');
                             const refreshed = await refreshWhoopToken();
 
                             if (refreshed) {
-                                // Token refreshed successfully, retry sync
+                                // Token refreshed successfully, retry sync with new token from localStorage
                                 console.log('Retrying sync with new token...');
                                 setWhoopSyncing(false); // Reset syncing state before retry
-                                return syncWhoopData(true); // Retry with new token
+                                return syncWhoopData(true); // Retry - will read new token from localStorage
                             } else {
                                 // Refresh failed, clear everything
                                 alert('Session expired. Please reconnect to Whoop.');
