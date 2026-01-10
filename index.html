@@ -14,6 +14,7 @@
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -1028,6 +1029,7 @@
             // Menu and Analytics state
             const [menuOpen, setMenuOpen] = useState(false);
             const [showAnalytics, setShowAnalytics] = useState(false);
+            const [trendDays, setTrendDays] = useState(30); // 7, 30, or 90
 
             // Daily macro tracking state
             const [dailyMacroTargets, setDailyMacroTargets] = useState(null);
@@ -1133,6 +1135,41 @@
                 if (day >= 3 && day <= 5) score -= 2; // Wed-Fri
 
                 return Math.max(0, Math.min(100, Math.round(score)));
+            };
+
+            // Calculate and save recovery to history
+            const calculateAndSaveRecovery = () => {
+                const score = calculateRecovery();
+                if (score === null) return null;
+
+                // Save to recovery history
+                const historyEntry = {
+                    score: score,
+                    timestamp: new Date().toISOString(),
+                    biomarkers: {
+                        sleepPerformance: parseFloat(recoveryData.sleepPerformance),
+                        hrv: parseFloat(recoveryData.hrv),
+                        sleepDebt: parseFloat(recoveryData.sleepDebt),
+                        sleepDuration: parseFloat(recoveryData.sleepDuration)
+                    }
+                };
+
+                // Get existing history
+                const history = JSON.parse(localStorage.getItem('fndtn-recovery-history') || '[]');
+
+                // Add new entry
+                history.push(historyEntry);
+
+                // Keep last 90 days of data
+                const ninetyDaysAgo = Date.now() - (90 * 24 * 60 * 60 * 1000);
+                const filteredHistory = history.filter(entry =>
+                    new Date(entry.timestamp).getTime() > ninetyDaysAgo
+                );
+
+                // Save back to localStorage
+                localStorage.setItem('fndtn-recovery-history', JSON.stringify(filteredHistory));
+
+                return score;
             };
 
             // Calculate personalized daily macro targets
@@ -2886,9 +2923,9 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
                                 />
                             </div>
 
-                            <button 
+                            <button
                                 className="button-primary"
-                                onClick={() => setRecoveryScore(calculateRecovery())}
+                                onClick={() => setRecoveryScore(calculateAndSaveRecovery())}
                             >
                                 Calculate Recovery
                             </button>
@@ -4345,6 +4382,157 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
                 );
             };
 
+            // Recovery Trend Chart Component
+            const RecoveryTrendChart = ({ days }) => {
+                const chartRef = React.useRef(null);
+                const chartInstanceRef = React.useRef(null);
+
+                React.useEffect(() => {
+                    if (!chartRef.current) return;
+
+                    // Get recovery history from localStorage
+                    const history = JSON.parse(localStorage.getItem('fndtn-recovery-history') || '[]');
+
+                    // Filter to selected time period
+                    const cutoffDate = Date.now() - (days * 24 * 60 * 60 * 1000);
+                    const filteredHistory = history.filter(entry =>
+                        new Date(entry.timestamp).getTime() > cutoffDate
+                    ).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+                    // Destroy existing chart if it exists
+                    if (chartInstanceRef.current) {
+                        chartInstanceRef.current.destroy();
+                    }
+
+                    // If no data, show placeholder
+                    if (filteredHistory.length === 0) {
+                        return;
+                    }
+
+                    // Prepare chart data
+                    const labels = filteredHistory.map(entry =>
+                        new Date(entry.timestamp).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+                    );
+                    const scores = filteredHistory.map(entry => entry.score);
+
+                    // Create new chart
+                    const ctx = chartRef.current.getContext('2d');
+                    chartInstanceRef.current = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Recovery Score',
+                                data: scores,
+                                borderColor: '#2C5AA0',
+                                backgroundColor: 'rgba(44, 90, 160, 0.1)',
+                                borderWidth: 2,
+                                fill: true,
+                                tension: 0.3,
+                                pointRadius: 4,
+                                pointHoverRadius: 6,
+                                pointBackgroundColor: '#2C5AA0',
+                                pointBorderColor: '#FFFFFF',
+                                pointBorderWidth: 2
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: false
+                                },
+                                tooltip: {
+                                    backgroundColor: '#1A1A1A',
+                                    titleColor: '#FFFFFF',
+                                    bodyColor: '#FFFFFF',
+                                    borderColor: '#3A3A3A',
+                                    borderWidth: 1,
+                                    padding: 12,
+                                    displayColors: false,
+                                    callbacks: {
+                                        label: function(context) {
+                                            return `Recovery: ${context.parsed.y}%`;
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    max: 100,
+                                    grid: {
+                                        color: '#3A3A3A'
+                                    },
+                                    ticks: {
+                                        color: '#7D7D7D',
+                                        callback: function(value) {
+                                            return value + '%';
+                                        }
+                                    }
+                                },
+                                x: {
+                                    grid: {
+                                        color: '#3A3A3A'
+                                    },
+                                    ticks: {
+                                        color: '#7D7D7D',
+                                        maxRotation: 45,
+                                        minRotation: 45
+                                    }
+                                }
+                            }
+                        }
+                    });
+
+                    // Cleanup on unmount
+                    return () => {
+                        if (chartInstanceRef.current) {
+                            chartInstanceRef.current.destroy();
+                        }
+                    };
+                }, [days]);
+
+                // Get recovery history to check if we have data
+                const history = JSON.parse(localStorage.getItem('fndtn-recovery-history') || '[]');
+                const cutoffDate = Date.now() - (days * 24 * 60 * 60 * 1000);
+                const filteredHistory = history.filter(entry =>
+                    new Date(entry.timestamp).getTime() > cutoffDate
+                );
+
+                if (filteredHistory.length === 0) {
+                    return (
+                        <div style={{
+                            background: '#0A0A0A',
+                            borderRadius: '8px',
+                            padding: '40px 20px',
+                            textAlign: 'center',
+                            color: '#7D7D7D'
+                        }}>
+                            <div style={{fontSize: '32px', marginBottom: '8px'}}>📈</div>
+                            <div style={{fontSize: '14px', marginBottom: '8px'}}>
+                                No recovery data yet
+                            </div>
+                            <div style={{fontSize: '12px'}}>
+                                Calculate recovery on the Recovery tab to start tracking trends
+                            </div>
+                        </div>
+                    );
+                }
+
+                return (
+                    <div style={{
+                        background: '#0A0A0A',
+                        borderRadius: '8px',
+                        padding: '16px',
+                        height: '300px'
+                    }}>
+                        <canvas ref={chartRef}></canvas>
+                    </div>
+                );
+            };
+
             // Render analytics view
             const renderAnalyticsView = () => {
                 // Calculate weekly stats from localStorage data
@@ -4431,18 +4619,60 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
                                     <div className="analytics-card-title">Recovery Trends</div>
                                     <div className="analytics-card-icon">📊</div>
                                 </div>
-                                <div style={{
-                                    background: '#0A0A0A',
-                                    borderRadius: '8px',
-                                    padding: '40px 20px',
-                                    textAlign: 'center',
-                                    color: '#7D7D7D'
-                                }}>
-                                    <div style={{fontSize: '32px', marginBottom: '8px'}}>📈</div>
-                                    <div style={{fontSize: '14px'}}>
-                                        Historical trend charts coming soon
-                                    </div>
+
+                                {/* Filter buttons */}
+                                <div style={{display: 'flex', gap: '8px', marginBottom: '16px'}}>
+                                    <button
+                                        onClick={() => setTrendDays(7)}
+                                        style={{
+                                            flex: 1,
+                                            padding: '8px 12px',
+                                            background: trendDays === 7 ? '#2C5AA0' : '#3A3A3A',
+                                            border: 'none',
+                                            borderRadius: '6px',
+                                            color: 'white',
+                                            fontSize: '13px',
+                                            fontWeight: 600,
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        7 Days
+                                    </button>
+                                    <button
+                                        onClick={() => setTrendDays(30)}
+                                        style={{
+                                            flex: 1,
+                                            padding: '8px 12px',
+                                            background: trendDays === 30 ? '#2C5AA0' : '#3A3A3A',
+                                            border: 'none',
+                                            borderRadius: '6px',
+                                            color: 'white',
+                                            fontSize: '13px',
+                                            fontWeight: 600,
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        30 Days
+                                    </button>
+                                    <button
+                                        onClick={() => setTrendDays(90)}
+                                        style={{
+                                            flex: 1,
+                                            padding: '8px 12px',
+                                            background: trendDays === 90 ? '#2C5AA0' : '#3A3A3A',
+                                            border: 'none',
+                                            borderRadius: '6px',
+                                            color: 'white',
+                                            fontSize: '13px',
+                                            fontWeight: 600,
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        90 Days
+                                    </button>
                                 </div>
+
+                                <RecoveryTrendChart days={trendDays} />
                             </div>
 
                             {/* Nutrition Trends */}
