@@ -105,7 +105,12 @@
                 // Store tokens in localStorage
                 localStorage.setItem('whoop-access-token', data.access_token);
                 localStorage.setItem('whoop-refresh-token', data.refresh_token);
-                localStorage.setItem('whoop-token-expiry', Date.now() + (data.expires_in * 1000));
+
+                // Set expiry (default to 24 hours if not provided)
+                const expiresIn = data.expires_in || 86400; // 24 hours in seconds
+                localStorage.setItem('whoop-token-expiry', Date.now() + (expiresIn * 1000));
+
+                console.log('Tokens stored with expiry:', new Date(Date.now() + (expiresIn * 1000)).toLocaleString());
 
                 // Success!
                 messageEl.textContent = '✓ Whoop Connected!';
