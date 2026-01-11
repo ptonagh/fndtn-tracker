@@ -1055,6 +1055,102 @@
             const [mealEditFeedback, setMealEditFeedback] = useState('');
             const [menuEditFeedback, setMenuEditFeedback] = useState('');
 
+            // Meal History: Cache meals and filtering (moved to top level for hooks rules)
+            const sortedMeals = React.useMemo(() => {
+                const meals = JSON.parse(localStorage.getItem('fndtn-meals') || '[]');
+                return [...meals].sort((a, b) =>
+                    new Date(b.timestamp) - new Date(a.timestamp)
+                );
+            }, [showMealHistory]);
+
+            const filteredMeals = React.useMemo(() => {
+                if (!mealSearchTerm) return sortedMeals;
+                const searchLower = mealSearchTerm.toLowerCase();
+                return sortedMeals.filter(meal => {
+                    const description = (meal.description || '').toLowerCase();
+                    const alignment = (meal.geneticAlignment || '').toLowerCase();
+                    const optimisation = (meal.recoveryOptimization || '').toLowerCase();
+                    return description.includes(searchLower) ||
+                           alignment.includes(searchLower) ||
+                           optimisation.includes(searchLower);
+                });
+            }, [sortedMeals, mealSearchTerm]);
+
+            // Workout Calendar: Cache workouts and calculations (moved to top level for hooks rules)
+            const calendarWorkouts = React.useMemo(() =>
+                JSON.parse(localStorage.getItem('fndtn-workouts') || '[]'),
+                [showWorkoutCalendar]
+            );
+
+            const getDaysInMonth = React.useCallback((date) => {
+                const year = date.getFullYear();
+                const month = date.getMonth();
+                const firstDay = new Date(year, month, 1);
+                const lastDay = new Date(year, month + 1, 0);
+                const days = [];
+
+                const firstDayOfWeek = firstDay.getDay();
+                for (let i = firstDayOfWeek - 1; i >= 0; i--) {
+                    const paddingDate = new Date(year, month, -i);
+                    days.push({ date: paddingDate, isCurrentMonth: false });
+                }
+
+                for (let day = 1; day <= lastDay.getDate(); day++) {
+                    days.push({ date: new Date(year, month, day), isCurrentMonth: true });
+                }
+
+                const remainingDays = 7 - (days.length % 7);
+                if (remainingDays < 7) {
+                    for (let i = 1; i <= remainingDays; i++) {
+                        days.push({ date: new Date(year, month + 1, i), isCurrentMonth: false });
+                    }
+                }
+
+                return days;
+            }, []);
+
+            const getWorkoutsForDate = React.useCallback((date) => {
+                const dateStr = date.toDateString();
+                return calendarWorkouts.filter(w =>
+                    new Date(w.timestamp).toDateString() === dateStr
+                );
+            }, [calendarWorkouts]);
+
+            const getHeatmapColor = React.useCallback((count) => {
+                if (count === 0) return '#1A1A1A';
+                if (count === 1) return '#2C5AA0';
+                if (count === 2) return '#4A7C59';
+                return '#FF9500';
+            }, []);
+
+            const calendarDays = React.useMemo(() =>
+                getDaysInMonth(calendarMonth),
+                [calendarMonth, getDaysInMonth]
+            );
+
+            const calendarMonthName = React.useMemo(() =>
+                calendarMonth.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
+                [calendarMonth]
+            );
+
+            const calendarStats = React.useMemo(() => {
+                const filtered = calendarWorkouts.filter(w => {
+                    const workoutDate = new Date(w.timestamp);
+                    return workoutDate.getMonth() === calendarMonth.getMonth() &&
+                           workoutDate.getFullYear() === calendarMonth.getFullYear();
+                });
+
+                const uniqueDays = new Set(filtered.map(w =>
+                    new Date(w.timestamp).toDateString()
+                )).size;
+
+                return {
+                    currentMonthWorkouts: filtered,
+                    daysWithWorkouts: uniqueDays,
+                    totalWorkouts: filtered.length
+                };
+            }, [calendarWorkouts, calendarMonth]);
+
             // Load state from localStorage
             useEffect(() => {
                 const stored = localStorage.getItem('fndtn-tracker-state');
@@ -4739,88 +4835,8 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
 
             // Render workout consistency calendar
             const renderWorkoutCalendarView = () => {
-                // Optimised: Cache workouts read
-                const workouts = React.useMemo(() =>
-                    JSON.parse(localStorage.getItem('fndtn-workouts') || '[]'),
-                    [showWorkoutCalendar]
-                );
-
-                // Helper to get all days in the current month
-                const getDaysInMonth = React.useCallback((date) => {
-                    const year = date.getFullYear();
-                    const month = date.getMonth();
-                    const firstDay = new Date(year, month, 1);
-                    const lastDay = new Date(year, month + 1, 0);
-                    const days = [];
-
-                    // Add padding days from previous month
-                    const firstDayOfWeek = firstDay.getDay();
-                    for (let i = firstDayOfWeek - 1; i >= 0; i--) {
-                        const paddingDate = new Date(year, month, -i);
-                        days.push({ date: paddingDate, isCurrentMonth: false });
-                    }
-
-                    // Add all days in current month
-                    for (let day = 1; day <= lastDay.getDate(); day++) {
-                        days.push({ date: new Date(year, month, day), isCurrentMonth: true });
-                    }
-
-                    // Add padding days from next month
-                    const remainingDays = 7 - (days.length % 7);
-                    if (remainingDays < 7) {
-                        for (let i = 1; i <= remainingDays; i++) {
-                            days.push({ date: new Date(year, month + 1, i), isCurrentMonth: false });
-                        }
-                    }
-
-                    return days;
-                }, []);
-
-                // Get workouts for a specific date
-                const getWorkoutsForDate = React.useCallback((date) => {
-                    const dateStr = date.toDateString();
-                    return workouts.filter(w =>
-                        new Date(w.timestamp).toDateString() === dateStr
-                    );
-                }, [workouts]);
-
-                // Get colour based on workout count
-                const getHeatmapColor = React.useCallback((count) => {
-                    if (count === 0) return '#1A1A1A';
-                    if (count === 1) return '#2C5AA0';
-                    if (count === 2) return '#4A7C59';
-                    return '#FF9500'; // 3+ workouts
-                }, []);
-
-                // Optimised: Cache calendar calculations
-                const days = React.useMemo(() =>
-                    getDaysInMonth(calendarMonth),
-                    [calendarMonth, getDaysInMonth]
-                );
-
-                const monthName = React.useMemo(() =>
-                    calendarMonth.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
-                    [calendarMonth]
-                );
-
-                // Optimised: Cache month stats
-                const { currentMonthWorkouts, daysWithWorkouts, totalWorkouts } = React.useMemo(() => {
-                    const filtered = workouts.filter(w => {
-                        const workoutDate = new Date(w.timestamp);
-                        return workoutDate.getMonth() === calendarMonth.getMonth() &&
-                               workoutDate.getFullYear() === calendarMonth.getFullYear();
-                    });
-
-                    const uniqueDays = new Set(filtered.map(w =>
-                        new Date(w.timestamp).toDateString()
-                    )).size;
-
-                    return {
-                        currentMonthWorkouts: filtered,
-                        daysWithWorkouts: uniqueDays,
-                        totalWorkouts: filtered.length
-                    };
-                }, [workouts, calendarMonth]);
+                // Use cached values from top-level hooks
+                const { currentMonthWorkouts, daysWithWorkouts, totalWorkouts } = calendarStats;
 
                 return (
                     <div>
@@ -4854,7 +4870,7 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
                                         ← Prev
                                     </button>
                                     <div style={{fontSize: '16px', fontWeight: 700}}>
-                                        {monthName}
+                                        {calendarMonthName}
                                     </div>
                                     <button
                                         onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1))}
@@ -4910,7 +4926,7 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
                                     gridTemplateColumns: 'repeat(7, 1fr)',
                                     gap: '4px'
                                 }}>
-                                    {days.map((dayObj, index) => {
+                                    {calendarDays.map((dayObj, index) => {
                                         const dayWorkouts = getWorkoutsForDate(dayObj.date);
                                         const workoutCount = dayWorkouts.length;
                                         const bgColor = getHeatmapColor(workoutCount);
@@ -5033,30 +5049,7 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
 
             // Render meal history browser
             const renderMealHistoryView = () => {
-                // Optimised: Cache meals read and sorting (fix mutation)
-                const sortedMeals = React.useMemo(() => {
-                    const meals = JSON.parse(localStorage.getItem('fndtn-meals') || '[]');
-                    // Create copy before sorting to avoid mutation
-                    return [...meals].sort((a, b) =>
-                        new Date(b.timestamp) - new Date(a.timestamp)
-                    );
-                }, [showMealHistory]);
-
-                // Optimised: Cache filtered results
-                const filteredMeals = React.useMemo(() => {
-                    if (!mealSearchTerm) return sortedMeals;
-
-                    const searchLower = mealSearchTerm.toLowerCase();
-                    return sortedMeals.filter(meal => {
-                        const description = (meal.description || '').toLowerCase();
-                        const alignment = (meal.geneticAlignment || '').toLowerCase();
-                        const optimisation = (meal.recoveryOptimization || '').toLowerCase();
-                        return description.includes(searchLower) ||
-                               alignment.includes(searchLower) ||
-                               optimisation.includes(searchLower);
-                    });
-                }, [sortedMeals, mealSearchTerm]);
-
+                // Use cached values from top-level hooks
                 return (
                     <div>
                         <div className="analytics-header">
