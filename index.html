@@ -1606,7 +1606,12 @@
                     if (data.refresh_token) {
                         localStorage.setItem('whoop-refresh-token', data.refresh_token);
                     }
-                    localStorage.setItem('whoop-token-expiry', Date.now() + (data.expires_in * 1000));
+
+                    // Set expiry (default to 24 hours if not provided by API)
+                    const expiresIn = data.expires_in || 86400; // 24 hours in seconds
+                    const expiryTimestamp = Date.now() + (expiresIn * 1000);
+                    localStorage.setItem('whoop-token-expiry', expiryTimestamp);
+                    addDebugLog(`🕐 Token expires: ${new Date(expiryTimestamp).toLocaleString('en-GB')}`);
 
                     // Update state
                     setWhoopAccessToken(data.access_token);
@@ -1697,12 +1702,46 @@
                 }
             };
 
-            // Check if we have a valid Whoop token on mount
+            // Check if we have a valid Whoop token on mount and refresh if needed
             useEffect(() => {
-                if (whoopAccessToken) {
+                const checkAndRefreshToken = async () => {
+                    const accessToken = localStorage.getItem('whoop-access-token');
+                    const refreshToken = localStorage.getItem('whoop-refresh-token');
+                    const tokenExpiry = localStorage.getItem('whoop-token-expiry');
+
+                    if (!accessToken || !refreshToken) {
+                        console.log('No Whoop tokens found in localStorage');
+                        setWhoopConnected(false);
+                        return;
+                    }
+
+                    console.log('Whoop tokens found in localStorage');
                     setWhoopConnected(true);
-                    console.log('Whoop token found in localStorage');
-                }
+
+                    // Check if token is expired or about to expire (within 1 hour)
+                    const expiryTime = parseInt(tokenExpiry) || 0;
+                    const oneHourFromNow = Date.now() + (60 * 60 * 1000);
+
+                    if (expiryTime < oneHourFromNow) {
+                        console.log('Whoop token expired or expiring soon, refreshing...');
+                        addDebugLog('🔄 Token expired/expiring - auto-refreshing on startup...');
+
+                        const refreshed = await refreshWhoopToken();
+                        if (!refreshed) {
+                            console.log('Failed to refresh token on startup');
+                            addDebugLog('❌ Auto-refresh failed - please reconnect');
+                            setWhoopConnected(false);
+                        } else {
+                            console.log('Token refreshed successfully on startup');
+                            addDebugLog('✅ Token auto-refreshed successfully');
+                        }
+                    } else {
+                        console.log('Whoop token is still valid');
+                        addDebugLog('✅ Whoop session active');
+                    }
+                };
+
+                checkAndRefreshToken();
             }, []);
 
             const handleImageUpload = (event) => {
