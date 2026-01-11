@@ -1026,6 +1026,17 @@
             const [whoopSyncing, setWhoopSyncing] = useState(false);
             const [debugLogs, setDebugLogs] = useState([]);
 
+            // Sleep debt tracking with smoothing (stored in localStorage)
+            const [sleepDebtHistory, setSleepDebtHistory] = useState(() => {
+                const stored = localStorage.getItem('fndtn-sleep-debt-history');
+                return stored ? JSON.parse(stored) : { debt: 0, lastCalculated: null };
+            });
+
+            // Persist sleep debt history whenever it changes
+            useEffect(() => {
+                localStorage.setItem('fndtn-sleep-debt-history', JSON.stringify(sleepDebtHistory));
+            }, [sleepDebtHistory]);
+
             // Menu and Analytics state
             const [menuOpen, setMenuOpen] = useState(false);
             const [showAnalytics, setShowAnalytics] = useState(false);
@@ -1556,6 +1567,55 @@
                 console.log(message);
             };
 
+            // Calculate smoothed sleep debt using Whoop's methodology
+            const calculateSmoothedSleepDebt = (sleepData) => {
+                const today = new Date().toDateString();
+                const lastCalculated = sleepDebtHistory.lastCalculated;
+
+                // Get current debt from history
+                let currentDebt = sleepDebtHistory.debt || 0;
+
+                // Check if this is a new day (don't recalculate for same day)
+                if (lastCalculated === today) {
+                    addDebugLog(`💤 Using cached debt: ${Math.round(currentDebt)} mins (same day)`);
+                    return currentDebt;
+                }
+
+                // Extract values from Whoop data (all in minutes)
+                const sleepNeed = Math.round(sleepData.sleepNeed || 0);
+                const mainSleep = Math.round(sleepData.mainSleep || 0);
+                const naps = Math.round(sleepData.naps || 0);
+
+                // Calculate adjusted sleep need (naps reduce the need)
+                const adjustedNeed = sleepNeed - naps;
+
+                // Calculate today's shortfall (only if we slept less than needed)
+                const shortfall = Math.max(0, adjustedNeed - mainSleep);
+
+                // Calculate surplus (only if we slept more than needed)
+                const surplus = Math.max(0, mainSleep - adjustedNeed);
+
+                // Apply Whoop's smoothing algorithm:
+                // 1. Decay existing debt to 90% (10% natural decay)
+                // 2. Add 50% of new shortfall (half-weight on new debt)
+                // 3. Subtract 100% of surplus (full credit for extra sleep)
+                const newDebt = Math.max(0, (currentDebt * 0.9) + (shortfall * 0.5) - surplus);
+
+                // Log the calculation
+                addDebugLog(`📊 Debt calc: (${Math.round(currentDebt)} × 0.9) + (${shortfall} × 0.5) - ${surplus} = ${Math.round(newDebt)} mins`);
+                addDebugLog(`   Need: ${sleepNeed}, Main: ${mainSleep}, Naps: ${naps}`);
+
+                // Save to history
+                const newHistory = {
+                    debt: newDebt,
+                    lastCalculated: today
+                };
+                setSleepDebtHistory(newHistory);
+                localStorage.setItem('fndtn-sleep-debt-history', JSON.stringify(newHistory));
+
+                return newDebt;
+            };
+
             // Refresh Whoop access token using refresh token
             const refreshWhoopToken = async () => {
                 // Read refresh token from localStorage (state might be stale)
@@ -1683,11 +1743,18 @@
                         throw new Error(data.error || 'Sync failed');
                     }
 
-                    // Map Whoop data to recovery data
+                    // Calculate smoothed sleep debt using Whoop's methodology
+                    const smoothedDebt = calculateSmoothedSleepDebt({
+                        sleepNeed: data.sleepNeed,
+                        mainSleep: data.mainSleep,
+                        naps: data.naps
+                    });
+
+                    // Map Whoop data to recovery data (using smoothed debt)
                     setRecoveryData({
                         sleepPerformance: Math.round(data.sleepPerformance), // Already a percentage (0-100)
                         hrv: Math.round(data.hrv),
-                        sleepDebt: Math.round(data.sleepDebt), // Already in minutes
+                        sleepDebt: Math.round(smoothedDebt), // Use smoothed calculation, not raw API value
                         sleepDuration: Math.round(data.sleepDuration * 10) / 10 // Round to 1 decimal
                     });
 
@@ -1695,7 +1762,7 @@
                     if (data.sleepRecordDate) {
                         const recordDate = new Date(data.sleepRecordDate);
                         addDebugLog(`📅 Sleep data from: ${recordDate.toLocaleDateString('en-GB')} ${recordDate.toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit'})}`);
-                        addDebugLog(`💤 Sleep Debt: ${Math.round(data.sleepDebt)} mins`);
+                        addDebugLog(`💤 Raw API debt: ${Math.round(data.sleepDebt)} mins | Smoothed: ${Math.round(smoothedDebt)} mins`);
                     }
 
                     addDebugLog('✅ Whoop data synced successfully!');
