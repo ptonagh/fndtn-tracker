@@ -4048,6 +4048,143 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
                         </div>
                     )}
 
+                    {/* Quick Log: Favourites & Recent Meals */}
+                    {(() => {
+                        const allMeals = JSON.parse(localStorage.getItem('fndtn-meals') || '[]');
+                        const favourites = allMeals.filter(m => m.isFavourite).slice(0, 5);
+                        const recent = allMeals
+                            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+                            .slice(0, 5);
+
+                        if (favourites.length === 0 && recent.length === 0) return null;
+
+                        return (
+                            <div className="card" style={{marginBottom: '20px'}}>
+                                <div className="card-header">
+                                    <span className="card-icon">⭐</span>
+                                    <div>
+                                        <h2 className="card-title">Quick Log</h2>
+                                        <p className="card-subtitle">Tap to log again</p>
+                                    </div>
+                                </div>
+
+                                <div style={{marginTop: '16px'}}>
+                                    {/* Favourites */}
+                                    {favourites.length > 0 && (
+                                        <div style={{marginBottom: favourites.length > 0 && recent.length > 0 ? '16px' : '0'}}>
+                                            <div style={{fontSize: '12px', fontWeight: 700, color: '#7D7D7D', marginBottom: '8px'}}>
+                                                ⭐ FAVOURITES
+                                            </div>
+                                            <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                                                {favourites.map((meal, idx) => (
+                                                    <button
+                                                        key={idx}
+                                                        onClick={() => {
+                                                            // Quick log this meal
+                                                            const protein = parseInt(meal.estimatedMacros?.protein) || meal.macros?.protein || 0;
+                                                            const carbs = parseInt(meal.estimatedMacros?.carbs) || meal.macros?.carbs || 0;
+                                                            const fat = parseInt(meal.estimatedMacros?.fat) || meal.macros?.fat || 0;
+                                                            const fiber = parseInt(meal.estimatedMacros?.fiber) || meal.macros?.fiber || 0;
+                                                            const calories = (protein * 4) + (carbs * 4) + (fat * 9);
+
+                                                            setConsumedMacros(prev => ({
+                                                                protein: prev.protein + protein,
+                                                                carbs: prev.carbs + carbs,
+                                                                fat: prev.fat + fat,
+                                                                fiber: prev.fiber + fiber,
+                                                                calories: prev.calories + calories
+                                                            }));
+
+                                                            alert(`✓ Logged: ${meal.description}\n\n${protein}g protein, ${carbs}g carbs, ${fat}g fat`);
+                                                        }}
+                                                        style={{
+                                                            padding: '12px',
+                                                            background: '#1A1A1A',
+                                                            border: '1px solid #3A3A3A',
+                                                            borderRadius: '8px',
+                                                            color: '#FFFFFF',
+                                                            fontSize: '13px',
+                                                            textAlign: 'left',
+                                                            cursor: 'pointer',
+                                                            transition: 'all 0.2s'
+                                                        }}
+                                                        onMouseEnter={(e) => e.currentTarget.style.background = '#2A2A2A'}
+                                                        onMouseLeave={(e) => e.currentTarget.style.background = '#1A1A1A'}
+                                                    >
+                                                        <div style={{fontWeight: 600, marginBottom: '4px'}}>
+                                                            {meal.description?.substring(0, 50)}{meal.description?.length > 50 ? '...' : ''}
+                                                        </div>
+                                                        <div style={{fontSize: '11px', color: '#7D7D7D'}}>
+                                                            {meal.macros?.protein || parseInt(meal.estimatedMacros?.protein) || 0}g protein •{' '}
+                                                            {meal.macros?.carbs || parseInt(meal.estimatedMacros?.carbs) || 0}g carbs •{' '}
+                                                            {meal.macros?.calories || ((parseInt(meal.estimatedMacros?.protein) || 0) * 4 + (parseInt(meal.estimatedMacros?.carbs) || 0) * 4 + (parseInt(meal.estimatedMacros?.fat) || 0) * 9)} cal
+                                                        </div>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Recent Meals */}
+                                    {recent.length > 0 && (
+                                        <div>
+                                            <div style={{fontSize: '12px', fontWeight: 700, color: '#7D7D7D', marginBottom: '8px'}}>
+                                                🕐 RECENT
+                                            </div>
+                                            <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                                                {recent.map((meal, idx) => (
+                                                    <button
+                                                        key={idx}
+                                                        onClick={() => {
+                                                            // Quick log this meal
+                                                            const protein = parseInt(meal.estimatedMacros?.protein) || meal.macros?.protein || 0;
+                                                            const carbs = parseInt(meal.estimatedMacros?.carbs) || meal.macros?.carbs || 0;
+                                                            const fat = parseInt(meal.estimatedMacros?.fat) || meal.macros?.fat || 0;
+                                                            const fiber = parseInt(meal.estimatedMacros?.fiber) || meal.macros?.fiber || 0;
+                                                            const calories = (protein * 4) + (carbs * 4) + (fat * 9);
+
+                                                            setConsumedMacros(prev => ({
+                                                                protein: prev.protein + protein,
+                                                                carbs: prev.carbs + carbs,
+                                                                fat: prev.fat + fat,
+                                                                fiber: prev.fiber + fiber,
+                                                                calories: prev.calories + calories
+                                                            }));
+
+                                                            alert(`✓ Logged: ${meal.description}\n\n${protein}g protein, ${carbs}g carbs, ${fat}g fat`);
+                                                        }}
+                                                        style={{
+                                                            padding: '12px',
+                                                            background: '#1A1A1A',
+                                                            border: '1px solid #3A3A3A',
+                                                            borderRadius: '8px',
+                                                            color: '#FFFFFF',
+                                                            fontSize: '13px',
+                                                            textAlign: 'left',
+                                                            cursor: 'pointer',
+                                                            transition: 'all 0.2s'
+                                                        }}
+                                                        onMouseEnter={(e) => e.currentTarget.style.background = '#2A2A2A'}
+                                                        onMouseLeave={(e) => e.currentTarget.style.background = '#1A1A1A'}
+                                                    >
+                                                        <div style={{fontWeight: 600, marginBottom: '4px'}}>
+                                                            {meal.description?.substring(0, 50)}{meal.description?.length > 50 ? '...' : ''}
+                                                        </div>
+                                                        <div style={{fontSize: '11px', color: '#7D7D7D'}}>
+                                                            {meal.macros?.protein || parseInt(meal.estimatedMacros?.protein) || 0}g protein •{' '}
+                                                            {meal.macros?.carbs || parseInt(meal.estimatedMacros?.carbs) || 0}g carbs •{' '}
+                                                            {meal.macros?.calories || ((parseInt(meal.estimatedMacros?.protein) || 0) * 4 + (parseInt(meal.estimatedMacros?.carbs) || 0) * 4 + (parseInt(meal.estimatedMacros?.fat) || 0) * 9)} cal
+                                                        </div>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })()}
+
                     {/* Meal Tracking Section */}
                     <div className="card">
                         <div className="card-header">
@@ -5424,7 +5561,7 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
                             // Meal detail view
                             <div className="analytics-content">
                                 <div className="analytics-card">
-                                    <div style={{marginBottom: '16px'}}>
+                                    <div style={{marginBottom: '16px', display: 'flex', gap: '8px', justifyContent: 'space-between'}}>
                                         <button
                                             onClick={() => setSelectedMeal(null)}
                                             style={{
@@ -5439,6 +5576,31 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
                                             }}
                                         >
                                             ← Back to List
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                const allMeals = JSON.parse(localStorage.getItem('fndtn-meals') || '[]');
+                                                const mealIndex = allMeals.findIndex(m => m.timestamp === selectedMeal.timestamp);
+
+                                                if (mealIndex !== -1) {
+                                                    allMeals[mealIndex].isFavourite = !allMeals[mealIndex].isFavourite;
+                                                    localStorage.setItem('fndtn-meals', JSON.stringify(allMeals));
+                                                    setSelectedMeal(allMeals[mealIndex]);
+                                                    alert(allMeals[mealIndex].isFavourite ? '⭐ Added to Favourites!' : 'Removed from Favourites');
+                                                }
+                                            }}
+                                            style={{
+                                                padding: '8px 16px',
+                                                background: selectedMeal.isFavourite ? '#FF9500' : '#3A3A3A',
+                                                border: 'none',
+                                                borderRadius: '6px',
+                                                color: 'white',
+                                                fontSize: '13px',
+                                                fontWeight: 600,
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            {selectedMeal.isFavourite ? '⭐ Favourite' : '☆ Add to Favourites'}
                                         </button>
                                     </div>
 
@@ -5613,8 +5775,9 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
                                                             minute: '2-digit'
                                                         })}
                                                     </div>
-                                                    <div style={{fontSize: '14px', fontWeight: 600, lineHeight: '1.4'}}>
-                                                        {meal.description?.substring(0, 80)}{meal.description?.length > 80 ? '...' : ''}
+                                                    <div style={{fontSize: '14px', fontWeight: 600, lineHeight: '1.4', display: 'flex', alignItems: 'center', gap: '6px'}}>
+                                                        {meal.isFavourite && <span style={{color: '#FF9500'}}>⭐</span>}
+                                                        <span>{meal.description?.substring(0, 80)}{meal.description?.length > 80 ? '...' : ''}</span>
                                                     </div>
                                                 </div>
 
