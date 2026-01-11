@@ -1054,6 +1054,7 @@
             const [editingMenu, setEditingMenu] = useState(false);
             const [mealEditFeedback, setMealEditFeedback] = useState('');
             const [menuEditFeedback, setMenuEditFeedback] = useState('');
+            const [mealTextEntry, setMealTextEntry] = useState('');
 
             // Meal History: Cache meals and filtering (moved to top level for hooks rules)
             const sortedMeals = React.useMemo(() => {
@@ -2280,6 +2281,109 @@ Return ONLY valid JSON, no other text.`;
 
                             // Note: Macros will be added to daily totals when user clicks "Confirm"
                             // This allows user to edit/correct the analysis first
+
+                            // Load Advisory Board consultation
+                            if (claudeApiKey) {
+                                setLoadingMealAdvisors(true);
+                                getMealAdvisoryBoard(mealData).then(advisors => {
+                                    setMealAdvisors(advisors);
+                                    setLoadingMealAdvisors(false);
+                                    console.log('✓ Meal Advisory Board loaded');
+                                });
+                            }
+                        } else {
+                            console.error('Could not parse JSON from response:', responseText);
+                            alert('Could not parse meal analysis. Check console for details.');
+                        }
+                    } else {
+                        console.error('No content in Claude response:', claudeData);
+                        alert('No response from Claude API. Check console for details.');
+                    }
+                } catch (error) {
+                    console.error('Meal analysis error:', error);
+                    alert('Error analysing meal: ' + error.message);
+                } finally {
+                    setMealAnalysing(false);
+                }
+            };
+
+            // Analyse meal from text entry (no photo)
+            const analyseMealFromText = async (mealText) => {
+                if (!claudeApiKey) {
+                    alert('Claude API key required for meal analysis');
+                    return;
+                }
+
+                setMealAnalysing(true);
+
+                try {
+                    const claudeContent = `Analyse this meal for Peter's tracking based on the text description provided.
+
+**Meal Description:**
+${mealText}
+
+**Peter's Genetic Requirements:**
+- IL-6 GG: Prioritise anti-inflammatory foods
+- LDL-R CT: Saturated fat <7% of calories
+- Diabetes variants: Low glycemic index
+- Targets: 30g+ protein, 10g+ fibre per meal
+
+**Current Recovery State:** ${recoveryScore || 'Not calculated'}%
+
+Based on the description, estimate the nutritional content and provide analysis in JSON format:
+
+\`\`\`json
+{
+  "mealName": "Clean description of the meal/drink",
+  "estimatedMacros": {
+    "protein": "0-5g",
+    "carbs": "0-5g",
+    "fat": "0-5g",
+    "fiber": "0-2g"
+  },
+  "geneticAlignment": "How this meal/drink aligns with genetic requirements",
+  "recoveryOptimisation": "Relevance to recovery state",
+  "improvements": "Suggestions if applicable (or null if none needed)"
+}
+\`\`\`
+
+Return ONLY valid JSON, no other text.`;
+
+                    // Send to Claude for analysis
+                    const claudeResponse = await fetch('https://anthropic-proxy.peter-5aa.workers.dev/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-api-key': claudeApiKey
+                        },
+                        body: JSON.stringify({
+                            model: 'claude-sonnet-4-20250514',
+                            max_tokens: 1500,
+                            messages: [{
+                                role: 'user',
+                                content: claudeContent
+                            }]
+                        })
+                    });
+
+                    const claudeData = await claudeResponse.json();
+                    console.log('Claude meal analysis response:', claudeData);
+
+                    if (claudeData.content?.[0]?.text) {
+                        const responseText = claudeData.content[0].text;
+                        console.log('Claude response text:', responseText);
+
+                        const jsonMatch = responseText.match(/```json\n?([\s\S]*?)\n?```/) ||
+                                        responseText.match(/\{[\s\S]*\}/);
+
+                        if (jsonMatch) {
+                            const mealData = JSON.parse(jsonMatch[1] || jsonMatch[0]);
+                            setCurrentMeal(mealData);
+                            setMealConfirmed(false);
+                            setEditingMeal(false);
+                            setMealEditFeedback('');
+                            setMealTextEntry(''); // Clear the text input
+                            console.log('✓ Meal data parsed:', mealData);
 
                             // Load Advisory Board consultation
                             if (claudeApiKey) {
@@ -4039,35 +4143,98 @@ Keep each specialist's advice focused, actionable, and specific to this meal. Re
                             <span className="card-icon">🍽️</span>
                             <div>
                                 <h2 className="card-title">Log a Meal</h2>
-                                <p className="card-subtitle">Photo → AI analyses nutrition</p>
+                                <p className="card-subtitle">Photo or text → AI analyses nutrition</p>
                             </div>
                         </div>
 
-                        {!mealPhoto ? (
-                            <label className="upload-button">
-                                <span className="upload-icon">📸</span>
-                                <span style={{fontWeight: 600, color: '#FFFFFF'}}>Take Meal Photo</span>
-                                <span style={{fontSize: '12px'}}>AI will analyse macros and genetic fit</span>
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    className="file-input"
-                                    onChange={(e) => {
-                                        const file = e.target.files[0];
-                                        if (file) {
-                                            const reader = new FileReader();
-                                            reader.onload = (ev) => {
-                                                setMealPhoto(ev.target.result);
-                                                analyseMeal(ev.target.result);
-                                            };
-                                            reader.readAsDataURL(file);
-                                        }
-                                    }}
-                                />
-                            </label>
+                        {!mealPhoto && !currentMeal && !mealAnalysing ? (
+                            <>
+                                {/* Text Entry Option */}
+                                <div style={{marginBottom: '16px'}}>
+                                    <label style={{fontSize: '13px', fontWeight: 600, color: '#FFFFFF', display: 'block', marginBottom: '8px'}}>
+                                        ✍️ Type what you're eating
+                                    </label>
+                                    <div style={{display: 'flex', gap: '8px'}}>
+                                        <input
+                                            type="text"
+                                            className="input-field"
+                                            placeholder="e.g., Black coffee, Chicken breast with rice..."
+                                            value={mealTextEntry || ''}
+                                            onChange={(e) => setMealTextEntry(e.target.value)}
+                                            onKeyPress={(e) => {
+                                                if (e.key === 'Enter' && mealTextEntry.trim()) {
+                                                    analyseMealFromText(mealTextEntry);
+                                                }
+                                            }}
+                                            style={{flex: 1}}
+                                        />
+                                        <button
+                                            onClick={() => {
+                                                if (mealTextEntry.trim()) {
+                                                    analyseMealFromText(mealTextEntry);
+                                                }
+                                            }}
+                                            disabled={!mealTextEntry.trim()}
+                                            style={{
+                                                padding: '12px 20px',
+                                                background: mealTextEntry.trim() ? '#4A7C59' : '#3A3A3A',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '8px',
+                                                fontSize: '13px',
+                                                fontWeight: 600,
+                                                cursor: mealTextEntry.trim() ? 'pointer' : 'not-allowed',
+                                                opacity: mealTextEntry.trim() ? 1 : 0.5
+                                            }}
+                                        >
+                                            Analyse
+                                        </button>
+                                    </div>
+                                    <div style={{fontSize: '11px', color: '#7D7D7D', marginTop: '6px'}}>
+                                        Press Enter or tap Analyse
+                                    </div>
+                                </div>
+
+                                {/* Divider */}
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    margin: '20px 0',
+                                    gap: '12px'
+                                }}>
+                                    <div style={{flex: 1, height: '1px', background: '#3A3A3A'}}></div>
+                                    <span style={{fontSize: '12px', color: '#7D7D7D'}}>OR</span>
+                                    <div style={{flex: 1, height: '1px', background: '#3A3A3A'}}></div>
+                                </div>
+
+                                {/* Photo Upload Option */}
+                                <label className="upload-button">
+                                    <span className="upload-icon">📸</span>
+                                    <span style={{fontWeight: 600, color: '#FFFFFF'}}>Take Meal Photo</span>
+                                    <span style={{fontSize: '12px'}}>AI will analyse macros and genetic fit</span>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="file-input"
+                                        onChange={(e) => {
+                                            const file = e.target.files[0];
+                                            if (file) {
+                                                const reader = new FileReader();
+                                                reader.onload = (ev) => {
+                                                    setMealPhoto(ev.target.result);
+                                                    analyseMeal(ev.target.result);
+                                                };
+                                                reader.readAsDataURL(file);
+                                            }
+                                        }}
+                                    />
+                                </label>
+                            </>
                         ) : (
                             <div>
-                                <img src={mealPhoto} alt="Meal" style={{width: '100%', borderRadius: '12px', marginBottom: '16px'}} />
+                                {mealPhoto && (
+                                    <img src={mealPhoto} alt="Meal" style={{width: '100%', borderRadius: '12px', marginBottom: '16px'}} />
+                                )}
                                 {mealAnalysing ? (
                                     <div style={{textAlign: 'center', padding: '20px', color: '#7D7D7D'}}>
                                         <div style={{fontSize: '32px', marginBottom: '8px'}}>⏳</div>
