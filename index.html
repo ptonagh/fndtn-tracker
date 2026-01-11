@@ -2331,8 +2331,19 @@ Return ONLY valid JSON, no other text.`;
                 // Save to history
                 const meals = JSON.parse(localStorage.getItem('fndtn-meals') || '[]');
                 meals.push({
-                    date: new Date().toISOString(),
-                    ...currentMeal,
+                    timestamp: new Date().toISOString(),
+                    description: currentMeal.mealName,
+                    estimatedMacros: currentMeal.estimatedMacros,
+                    macros: {
+                        protein: protein,
+                        carbs: carbs,
+                        fat: fat,
+                        fiber: fiber,
+                        calories: calories
+                    },
+                    geneticAlignment: currentMeal.geneticAlignment,
+                    recoveryOptimization: currentMeal.recoveryOptimisation,
+                    improvements: currentMeal.improvements,
                     recoveryScore
                 });
                 localStorage.setItem('fndtn-meals', JSON.stringify(meals));
