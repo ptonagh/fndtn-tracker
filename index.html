@@ -1691,6 +1691,13 @@
                         sleepDuration: Math.round(data.sleepDuration * 10) / 10 // Round to 1 decimal
                     });
 
+                    // Log sleep record date for debugging
+                    if (data.sleepRecordDate) {
+                        const recordDate = new Date(data.sleepRecordDate);
+                        addDebugLog(`📅 Sleep data from: ${recordDate.toLocaleDateString('en-GB')} ${recordDate.toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit'})}`);
+                        addDebugLog(`💤 Sleep Debt: ${Math.round(data.sleepDebt)} mins`);
+                    }
+
                     addDebugLog('✅ Whoop data synced successfully!');
                     alert('✓ Whoop data synced! You can now calculate recovery.');
 
