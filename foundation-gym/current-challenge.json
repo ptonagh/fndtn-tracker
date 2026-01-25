@@ -1,0 +1,37 @@
+  {                                                                             
+      "active": true,                                                           
+      "month": "February 2026",                                                 
+      "title": "February Fitness Fundamentals",                                 
+      "description": "Build consistency with daily movement and core strength", 
+      "startDate": "2026-02-01",                                                
+      "endDate": "2026-02-29",                                                  
+      "goals": [                                                                
+          {                                                                     
+              "id": "feb-2026-workouts",                                        
+              "title": "Complete 12 Workouts",                                  
+              "type": "frequency",                                              
+              "target": 12,                                                     
+              "unit": "workouts",                                               
+              "emoji": "🏋️",                                                    
+              "description": "Attend 12 gym sessions this month"                
+          },                                                                    
+          {                                                                     
+              "id": "feb-2026-plank",                                           
+              "title": "60-second Plank Daily",                                 
+              "type": "frequency",                                              
+              "target": 20,                                                     
+              "unit": "days",                                                   
+              "emoji": "💪",                                                    
+              "description": "Hold a 60-second plank on 20 days this month"     
+          },                                                                    
+          {                                                                     
+              "id": "feb-2026-steps",                                           
+              "title": "10,000 Steps Daily",                                    
+              "type": "daily",                                                  
+              "target": 10000,                                                  
+              "unit": "steps",                                                  
+              "emoji": "🚶",                                                    
+              "description": "Walk 10,000 steps every day"                      
+          }                                                                     
+      ]                                                                         
+  }      
